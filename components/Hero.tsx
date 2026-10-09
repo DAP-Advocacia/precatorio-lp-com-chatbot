@@ -33,7 +33,7 @@ export default function Hero() {
         <div className="mx-auto flex w-full max-w-[800px] flex-col items-center text-center">
           <img
             src="/logo-white.png"
-            alt="Premium Office Precatório"
+            alt="Premium Office Precatórios"
             className="mb-7 block h-[81px] w-auto"
           />
 
@@ -42,20 +42,20 @@ export default function Hero() {
           </div>
 
           <h1 className="mb-5 max-w-[720px] text-[clamp(30px,4vw,46px)] font-extrabold leading-[1.2] tracking-[-0.02em] text-white text-wrap-pretty">
-            Você já conquistou o direito de receber.
+            Tem um precatório para receber? Descubra quanto ele pode valer hoje.
           </h1>
 
           <p className="mb-8 max-w-[560px] text-[clamp(17px,2vw,20px)] leading-[1.65] text-[#C7CFDE] text-wrap-pretty">
             A Premium Office ajuda você a entender se faz sentido transformar esse crédito futuro
-            em dinheiro disponível agora — com análise, clareza e segurança, sem compromisso.
+            em dinheiro disponível agora, com análise, clareza e segurança, sem compromisso.
           </p>
 
           <div className="flex flex-col items-center justify-center gap-3.5 sm:flex-row">
             <a
               href="#ia"
-              className="rounded-full border border-[rgba(143,180,234,0.45)] bg-navy-accent px-7 py-4 text-base font-extrabold text-white no-underline shadow-[0_12px_32px_rgba(13,31,56,0.35)] transition-all duration-250 ease-out hover:-translate-y-px hover:border-[#F7F5F1] hover:bg-[#F7F5F1] hover:text-navy-accent hover:shadow-[0_16px_38px_rgba(13,31,56,0.45)]"
+              className="rounded-full border border-[rgba(143,180,234,0.45)] bg-[#F7F5F1] px-7 py-4 text-base font-extrabold text-navy-accent no-underline shadow-[0_12px_32px_rgba(13,31,56,0.35)] transition-all duration-250 ease-out hover:-translate-y-px hover:border-[rgba(143,180,234,0.45)] hover:bg-navy-accent hover:text-white hover:shadow-[0_16px_38px_rgba(13,31,56,0.45)]"
             >
-              Solicitar análise gratuita
+              Analisar meu precatório
             </a>
             <span className="text-sm text-[#7C879C] sm:ml-2">Sem compromisso · Sem pressão</span>
           </div>

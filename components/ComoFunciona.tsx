@@ -2,6 +2,13 @@
 
 import { useEffect, useRef } from 'react';
 
+const PASSOS = [
+  { title: 'Envie o ofício', desc: 'Suba o PDF do seu ofício ou precatório em ambiente seguro, sem filas e sem formulários.' },
+  { title: 'A IA analisa', desc: 'Em segundos, identificamos credor, ente devedor, tribunal e valores do seu crédito.' },
+  { title: 'Você recebe a faixa de valor', desc: 'Veja uma estimativa indicativa de quanto seu precatório pode valer hoje.' },
+  { title: 'Converse com um consultor', desc: 'Um especialista confirma a análise e apresenta a proposta oficial, sem compromisso.' },
+];
+
 export default function ComoFunciona() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -37,21 +44,16 @@ export default function ComoFunciona() {
           <p className="text-base text-[#9AA6BC]">Do envio do ofício à reunião com consultor.</p>
         </div>
 
-        <div className="mx-auto max-w-[820px] rounded-[20px] border border-navy-border bg-navy-panel px-8 py-7">
-          <p className="mb-3.5 text-[15px] leading-[1.75] text-[#C7CFDE] text-wrap-pretty">
-            O <strong className="text-white">ofício requisitório</strong> é o documento emitido
-            pela Justiça que reconhece, de forma definitiva, o seu direito de receber um valor do
-            poder público — e é a partir dele que nasce o{' '}
-            <strong className="text-white">precatório</strong>. Na prática, esse precatório é um
-            ativo judicial real: um crédito já reconhecido pela Justiça, com valor definido, mas
-            que costuma levar anos para ser efetivamente pago pelo governo.
-          </p>
-          <p className="text-[15px] leading-[1.75] text-[#C7CFDE] text-wrap-pretty">
-            Antecipar esse crédito significa transformar um direito que hoje só existe no papel em
-            dinheiro disponível agora, sem esperar pelo prazo do governo. É exatamente isso que a
-            nossa análise faz: entender o seu ofício, calcular o valor real do seu precatório e
-            mostrar, com clareza e sem compromisso, se a antecipação faz sentido para você.
-          </p>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-5">
+          {PASSOS.map((p, i) => (
+            <div key={p.title} className="rounded-[20px] border border-navy-border bg-navy-panel p-6">
+              <div className="mb-3.5 flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(143,180,234,0.14)] text-sm font-extrabold text-sky">
+                {i + 1}
+              </div>
+              <h4 className="mb-1.5 text-[15px] font-extrabold text-white">{p.title}</h4>
+              <p className="text-sm leading-[1.55] text-[#9AA6BC]">{p.desc}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

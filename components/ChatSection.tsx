@@ -9,14 +9,21 @@ import {
   DOCS_NECESSARIOS,
   formatBRL,
   MOCK_DOC,
-  REVIEWS,
   type Analise,
 } from '@/lib/data';
+import SocialProof from '@/components/SocialProof';
 
 // ---------------------------------------------------------------------------
 // Message model
 // ---------------------------------------------------------------------------
 type Stage =
+  | 'intro'
+  | 'lead-nome'
+  | 'lead-estado'
+  | 'lead-cpf'
+  | 'lead-celular'
+  | 'ask-oficio'
+  | 'free-chat'
   | 'qualify'
   | 'upload'
   | 'analyzing'
@@ -28,6 +35,18 @@ type Stage =
   | 'done'
   | 'consultant'
   | 'revision';
+
+interface LeadData {
+  nome: string;
+  estado: string;
+  cpf: string;
+  celular: string;
+}
+
+const ESTADOS_BR = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+];
 
 let msgId = 0;
 const aiText = (text: string): any => ({
@@ -45,7 +64,17 @@ const aiTyping = (): any => ({ id: ++msgId, from: 'ai', kind: 'typing' });
 const aiCard = (kind: string, extra: any): any => ({ id: ++msgId, from: 'ai', kind, ...extra });
 
 const WELCOME =
-  'Olá! Sou a IA da Premium Office Precatório. Vou te ajudar a entender, com clareza e segurança, se faz sentido antecipar seu crédito. Para direcionar a análise, qual o seu perfil?';
+  'Olá! Sou a IA da Premium Office Precatórios. Vou te ajudar a entender, com clareza e segurança, se faz sentido antecipar seu crédito. Para direcionar a análise, qual o seu perfil?';
+
+const INTRO_TEXT =
+  'Tem um precatório para receber e precisa de orientação gratuita de uma Inteligência Artificial treinada por especialistas? Ou prefere aprender no seu ritmo com um curso completo sobre o tema?';
+
+const LEAD_STEPS: { key: Stage; label: string; placeholder: string; tooltip?: string }[] = [
+  { key: 'lead-nome', label: 'Qual o seu nome completo?', placeholder: 'Digite seu nome' },
+  { key: 'lead-estado', label: 'Em qual estado está o processo?', placeholder: 'Selecione o estado', tooltip: 'É o estado (UF) relacionado ao seu processo/precatório, não necessariamente onde você mora hoje.' },
+  { key: 'lead-cpf', label: 'Qual o seu CPF?', placeholder: '000.000.000-00' },
+  { key: 'lead-celular', label: 'Qual o seu número de celular?', placeholder: '(00) 00000-0000' },
+];
 
 const ANALYSIS_STEPS = [
   {
@@ -97,6 +126,20 @@ const CARD_BUBBLE: CSSProperties = { ...AI_BUBBLE, maxWidth: '92%', padding: '16
 const AI_WRAP: CSSProperties = { display: 'flex', justifyContent: 'flex-start', position: 'relative', zIndex: 1, animation: 'aiIn 0.45s cubic-bezier(0.4,0,0.2,1)' };
 const USER_WRAP: CSSProperties = { display: 'flex', justifyContent: 'flex-end', position: 'relative', zIndex: 1, animation: 'fadeUp 0.4s cubic-bezier(0.4,0,0.2,1)' };
 
+function getOrCreateClientSessionId(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const key = 'po_chat_session_id';
+    const existing = window.sessionStorage.getItem(key);
+    if (existing) return existing;
+    const id = `lp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    window.sessionStorage.setItem(key, id);
+    return id;
+  } catch {
+    return `lp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  }
+}
+
 const waNumber = '5521986450262';
 const waMessage = encodeURIComponent('Olá! Estou analisando meu precatório na Premium Office.');
 const whatsappLink = `https://wa.me/${waNumber}?text=${waMessage}`;
@@ -110,6 +153,10 @@ interface State {
   quickAnalysis: Analise | null;
   flyingBubble: any | null;
   composerText: string;
+  leadData: LeadData;
+  leadFieldValue: string;
+  leadTooltipOpen: boolean;
+  fullscreenMobile: boolean;
 }
 
 export default class ChatSection extends React.Component<{}, State> {
@@ -118,17 +165,24 @@ export default class ChatSection extends React.Component<{}, State> {
   quickDropRef = React.createRef<HTMLLabelElement>();
   revealRAF: number | null = null;
   revealLoopRunning = false;
+  clientSessionId = getOrCreateClientSessionId();
 
   state: State = {
-    stage: 'qualify',
-    messages: [aiText(WELCOME)],
+    stage: 'intro',
+    messages: [aiText(INTRO_TEXT)],
     activeTab: 'chat',
     perfilExiting: false,
     quickStage: 'idle',
     quickAnalysis: null,
     flyingBubble: null,
     composerText: '',
+    leadData: { nome: '', estado: '', cpf: '', celular: '' },
+    leadFieldValue: '',
+    leadTooltipOpen: false,
+    fullscreenMobile: false,
   };
+
+  toggleFullscreenMobile = () => this.setState((s) => ({ fullscreenMobile: !s.fullscreenMobile }));
 
   componentDidMount() {
     this.startRevealLoop();
@@ -280,6 +334,99 @@ export default class ChatSection extends React.Component<{}, State> {
     });
   };
 
+  onSelectIntro = (choice: 'ia' | 'curso', e: React.MouseEvent) => {
+    if (choice === 'curso') {
+      this.flyBubble('Prefiro o curso', e.currentTarget as HTMLElement, () => {
+        this.pushMessages(
+          userText('Prefiro o curso', true),
+          aiText('Ótima escolha! Em instantes um consultor vai te chamar no WhatsApp com todos os detalhes do curso sobre precatórios.')
+        );
+        this.setState({ stage: 'consultant' });
+      });
+      return;
+    }
+    this.flyBubble('Quero orientação com a IA', e.currentTarget as HTMLElement, () => {
+      this.pushMessages(
+        userText('Quero orientação com a IA', true),
+        aiText(LEAD_STEPS[0].label)
+      );
+      this.setState({ stage: 'lead-nome', leadFieldValue: '' });
+    });
+  };
+
+  onLeadFieldChange = (value: string) => this.setState({ leadFieldValue: value });
+
+  onAskOficio = (choice: 'sim' | 'nao', e: React.MouseEvent) => {
+    if (choice === 'sim') {
+      this.flyBubble('Sim, quero enviar agora', e.currentTarget as HTMLElement, () => {
+        this.pushMessages(
+          userText('Sim, quero enviar agora', true),
+          aiText('Ótimo! Envie o ofício ou precatório em PDF para que eu possa extrair os dados principais.')
+        );
+        this.setState({ stage: 'upload' });
+      });
+      return;
+    }
+    this.flyBubble('Agora não, só quero conversar', e.currentTarget as HTMLElement, () => {
+      this.pushMessages(
+        userText('Agora não, só quero conversar', true),
+        aiText('Sem problemas! Pode me perguntar o que quiser sobre precatórios, antecipação ou como funciona o processo. Quando quiser enviar o documento, é só avisar.')
+      );
+      this.setState({ stage: 'free-chat' });
+    });
+  };
+
+  onSelectEstado = (uf: string) => {
+    this.flyBubble(uf, null, () => this.commitLeadStep('estado', uf));
+  };
+
+  commitLeadStep = (field: keyof LeadData, rawValue: string) => {
+    const value = rawValue.trim();
+    if (!value) return;
+    const stepIdx = LEAD_STEPS.findIndex((s) => s.key === this.state.stage);
+    const nextStep = LEAD_STEPS[stepIdx + 1];
+
+    this.setState((s) => ({ leadData: { ...s.leadData, [field]: value } }));
+
+    if (nextStep) {
+      this.pushMessages(userText(value, true), aiText(nextStep.label));
+      this.setState({ stage: nextStep.key, leadFieldValue: '' });
+    } else {
+      // Último campo (celular) coletado — pergunta se quer enviar o ofício agora
+      this.pushMessages(
+        userText(value, true),
+        aiText('Perfeito! Você quer enviar o ofício ou precatório agora para eu já iniciar a análise?')
+      );
+      this.setState({ stage: 'ask-oficio', leadFieldValue: '' });
+      this.persistLead({ ...this.state.leadData, [field]: value });
+    }
+  };
+
+  onLeadFieldSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const { stage, leadFieldValue } = this.state;
+    const fieldMap: Partial<Record<Stage, keyof LeadData>> = {
+      'lead-nome': 'nome',
+      'lead-cpf': 'cpf',
+      'lead-celular': 'celular',
+    };
+    const field = fieldMap[stage];
+    if (!field) return;
+    this.commitLeadStep(field, leadFieldValue);
+  };
+
+  persistLead = async (lead: LeadData) => {
+    try {
+      await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead, clientSessionId: this.clientSessionId }),
+      });
+    } catch (error) {
+      console.error('Falha ao registrar lead:', error);
+    }
+  };
+
   runAnalysis = (fileLabel: string) => {
     this.pushMessages(userText(`Documento enviado: ${fileLabel}`, true), aiTyping());
     this.setState({ stage: 'analyzing' });
@@ -425,6 +572,20 @@ export default class ChatSection extends React.Component<{}, State> {
     this.startRevealLoop();
   };
 
+  onRestartFull = () => {
+    this.setState({
+      stage: 'intro',
+      messages: [aiText(INTRO_TEXT)],
+      perfilExiting: false,
+      flyingBubble: null,
+      composerText: '',
+      leadData: { nome: '', estado: '', cpf: '', celular: '' },
+      leadFieldValue: '',
+      leadTooltipOpen: false,
+    });
+    this.startRevealLoop();
+  };
+
   onComposerChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     this.setState({ composerText: e.target.value });
     const el = e.target;
@@ -459,7 +620,7 @@ export default class ChatSection extends React.Component<{}, State> {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: historyForApi }),
+        body: JSON.stringify({ messages: historyForApi, clientSessionId: this.clientSessionId }),
       });
 
       if (!res.ok) {
@@ -698,7 +859,7 @@ export default class ChatSection extends React.Component<{}, State> {
   renderComposer() {
     const canSend = this.state.composerText.trim().length > 0;
     return (
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginTop: '10px' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginTop: '10px', width: '100%' }}>
         <textarea
           value={this.state.composerText}
           onChange={this.onComposerChange}
@@ -706,7 +867,9 @@ export default class ChatSection extends React.Component<{}, State> {
           placeholder="Ou escreva sua mensagem para a IA…"
           rows={1}
           style={{
-            flex: 1,
+            flex: '1 1 0%',
+            minWidth: 0,
+            width: '100%',
             resize: 'none',
             border: '1.5px solid #DDE2EA',
             borderRadius: '12px',
@@ -753,6 +916,122 @@ export default class ChatSection extends React.Component<{}, State> {
 
   renderChatInput() {
     const { stage } = this.state;
+    if (stage === 'intro') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <Button
+            onClick={(e) => this.onSelectIntro('ia', e)}
+            className="transition-colors duration-250 hover:!bg-[#F7F5F1] hover:!text-navy-accent"
+            style={{ height: 'auto', minHeight: '46px', padding: '13px 16px', borderRadius: '12px', border: '1.5px solid #0D1F38', background: '#0D1F38', color: '#F7F5F1', fontWeight: 800, fontSize: '13px', textAlign: 'center', lineHeight: 1.4 }}
+          >
+            Quero orientação gratuita com a IA
+          </Button>
+          <Button
+            onClick={(e) => this.onSelectIntro('curso', e)}
+            className="transition-colors duration-250 hover:!bg-[#5B6478] hover:!text-white"
+            style={{ height: 'auto', minHeight: '46px', padding: '13px 16px', borderRadius: '12px', border: '1.5px solid #DDE2EA', background: '#fff', color: '#5B6478', fontWeight: 700, fontSize: '13px', textAlign: 'center', lineHeight: 1.4 }}
+          >
+            Prefiro fazer um curso sobre o tema
+          </Button>
+        </div>
+      );
+    }
+    if (stage === 'lead-nome' || stage === 'lead-cpf' || stage === 'lead-celular') {
+      const step = LEAD_STEPS.find((s) => s.key === stage)!;
+      const inputType = stage === 'lead-celular' ? 'tel' : 'text';
+      return (
+        <form onSubmit={this.onLeadFieldSubmit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+          <input
+            autoFocus
+            type={inputType}
+            inputMode={stage === 'lead-cpf' || stage === 'lead-celular' ? 'numeric' : 'text'}
+            value={this.state.leadFieldValue}
+            onChange={(e) => this.onLeadFieldChange(e.target.value)}
+            placeholder={step.placeholder}
+            style={{
+              width: '100%',
+              maxWidth: '320px',
+              textAlign: 'center',
+              border: '1.5px solid #DDE2EA',
+              borderRadius: '999px',
+              padding: '12px 18px',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#1C2331',
+              background: '#fff',
+              outline: 'none',
+            }}
+          />
+          <Button
+            type="submit"
+            disabled={!this.state.leadFieldValue.trim()}
+            className="transition-colors duration-250 hover:!bg-[#F7F5F1] hover:!text-navy-accent"
+            style={{ height: 'auto', minHeight: '42px', width: '100%', maxWidth: '320px', padding: '12px', borderRadius: '999px', border: '1.5px solid #0D1F38', background: this.state.leadFieldValue.trim() ? '#0D1F38' : '#B9C1D0', color: '#fff', fontWeight: 800, fontSize: '13px' }}
+          >
+            Continuar
+          </Button>
+        </form>
+      );
+    }
+    if (stage === 'lead-estado') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#5B6478', fontWeight: 600 }}>Estado do processo</span>
+            <button
+              type="button"
+              onMouseEnter={() => this.setState({ leadTooltipOpen: true })}
+              onMouseLeave={() => this.setState({ leadTooltipOpen: false })}
+              onClick={() => this.setState((s) => ({ leadTooltipOpen: !s.leadTooltipOpen }))}
+              aria-label="O que é o estado do processo?"
+              style={{ width: '16px', height: '16px', borderRadius: '50%', border: '1.5px solid #8A94A8', background: 'transparent', color: '#5B6478', fontSize: '10px', fontWeight: 800, lineHeight: 1, cursor: 'pointer', padding: 0 }}
+            >
+              ?
+            </button>
+            {this.state.leadTooltipOpen && (
+              <div style={{ position: 'absolute', bottom: '22px', left: '50%', transform: 'translateX(-50%)', width: '220px', background: '#0B1B33', color: '#F7F5F1', fontSize: '11.5px', lineHeight: 1.5, padding: '10px 12px', borderRadius: '10px', boxShadow: '0 12px 24px rgba(11,27,51,0.35)', zIndex: 10 }}>
+                {LEAD_STEPS.find((s) => s.key === 'lead-estado')!.tooltip}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', width: '100%', maxWidth: '320px' }}>
+            {ESTADOS_BR.map((uf) => (
+              <button
+                key={uf}
+                onClick={() => this.onSelectEstado(uf)}
+                className="transition-colors duration-250 hover:!bg-[#F7F5F1] hover:!text-navy-accent"
+                style={{ padding: '8px 0', borderRadius: '8px', border: '1.5px solid #0D1F38', background: '#0D1F38', color: '#F7F5F1', fontWeight: 700, fontSize: '11.5px', cursor: 'pointer' }}
+              >
+                {uf}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    if (stage === 'ask-oficio') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <Button
+            onClick={(e) => this.onAskOficio('sim', e)}
+            className="transition-colors duration-250 hover:!bg-[#F7F5F1] hover:!text-navy-accent"
+            style={{ height: 'auto', minHeight: '46px', padding: '13px 16px', borderRadius: '12px', border: '1.5px solid #0D1F38', background: '#0D1F38', color: '#F7F5F1', fontWeight: 800, fontSize: '13px', textAlign: 'center', lineHeight: 1.4 }}
+          >
+            Sim, quero enviar agora
+          </Button>
+          <Button
+            onClick={(e) => this.onAskOficio('nao', e)}
+            className="transition-colors duration-250 hover:!bg-[#5B6478] hover:!text-white"
+            style={{ height: 'auto', minHeight: '46px', padding: '13px 16px', borderRadius: '12px', border: '1.5px solid #DDE2EA', background: '#fff', color: '#5B6478', fontWeight: 700, fontSize: '13px', textAlign: 'center', lineHeight: 1.4 }}
+          >
+            Agora não, só quero conversar
+          </Button>
+        </div>
+      );
+    }
+    if (stage === 'free-chat') {
+      return null;
+    }
     if (stage === 'qualify') {
       return (
         <div
@@ -969,17 +1248,26 @@ export default class ChatSection extends React.Component<{}, State> {
   render() {
     const { activeTab, stage } = this.state;
     const STAGE_STEP: Record<Stage, number> = {
+      intro: 0, 'lead-nome': 0, 'lead-estado': 0, 'lead-cpf': 0, 'lead-celular': 0, 'ask-oficio': 0, 'free-chat': 0,
       qualify: 0, upload: 0, analyzing: 1, confirm: 1, calculating: 2, decision: 2, documents: 3, schedule: 3, done: 3, consultant: 3, revision: 3,
     };
     const currentStepIdx = STAGE_STEP[stage] ?? 0;
 
     return (
-      <section id="ia" data-screen-label="Chatbox IA" className="bg-mist px-5 py-10 sm:px-8 sm:py-14 md:px-16 md:py-24">
-        <div className="mx-auto flex max-w-[1480px] flex-wrap items-start gap-10">
+      <section id="ia" data-screen-label="Chatbox IA" className="relative bg-mist px-5 py-10 sm:px-8 sm:py-14 md:px-16 md:py-24">
+        <button
+          type="button"
+          onClick={() => document.getElementById('ia')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="fixed inset-x-0 bottom-0 z-30 w-full border-t border-[#16233F] bg-navy px-5 py-3.5 text-center text-sm font-extrabold text-white shadow-[0_-8px_24px_rgba(11,27,51,0.25)] sm:hidden"
+          style={{ paddingBottom: 'calc(0.875rem + env(safe-area-inset-bottom))' }}
+        >
+          Falar com a IA agora
+        </button>
+        <div className="mx-auto flex max-w-[1480px] flex-wrap items-start justify-center gap-10 lg:justify-start">
           {/* LEFT: progress */}
-          <div className="flex min-w-[260px] max-w-[320px] flex-[1_1_260px] flex-col self-stretch">
+          <div className="flex w-full min-w-[260px] max-w-[320px] flex-[1_1_260px] flex-col self-stretch">
             <div className="flex h-full flex-col rounded-[20px] border border-[#EAEDF2] bg-[#EEF0F3] p-6 shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]">
-              <div className="mb-4.5 text-[12.5px] font-extrabold uppercase tracking-[0.05em] text-[#5B6478]">Progresso da análise</div>
+              <div className="mb-4.5 text-center text-[12.5px] font-extrabold uppercase tracking-[0.05em] text-[#5B6478]">Progresso da análise</div>
               <div className="flex flex-1 flex-col py-1">
                 {ANALYSIS_STEPS.map((step, i) => {
                   const isLast = i === ANALYSIS_STEPS.length - 1;
@@ -1007,24 +1295,63 @@ export default class ChatSection extends React.Component<{}, State> {
           <div className="min-w-[340px] max-w-[760px] flex-[2_1_400px]">
             {activeTab === 'chat' && (
               <div>
-                <div className="animate-fadeUp overflow-hidden rounded-3xl border border-[#EAEDF2] bg-white shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]">
-                  <div className="flex items-center gap-2.5 border-b border-[#16233F] bg-navy px-5 py-4">
+                <div
+                  className={
+                    this.state.fullscreenMobile
+                      ? 'fixed inset-0 z-40 flex flex-col overflow-hidden rounded-none border-0 bg-white sm:static sm:z-auto sm:flex-none sm:rounded-3xl sm:border sm:border-[#EAEDF2] sm:shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]'
+                      : 'animate-fadeUp overflow-hidden rounded-3xl border border-[#EAEDF2] bg-white shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]'
+                  }
+                  style={this.state.fullscreenMobile ? { height: '100dvh' } : undefined}
+                >
+                  <div
+                    className="flex flex-shrink-0 items-center gap-2.5 border-b border-[#16233F] bg-navy px-5 py-4"
+                    style={this.state.fullscreenMobile ? { paddingTop: 'calc(1rem + env(safe-area-inset-top))' } : undefined}
+                  >
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-accent text-xs font-extrabold text-white">IA</div>
-                    <div>
+                    <div className="flex-1">
                       <div className="text-sm font-extrabold text-white">Assistente Premium Office</div>
                       <div className="text-xs text-[#7C879C]">Análise de precatórios · online</div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={this.toggleFullscreenMobile}
+                      aria-label={this.state.fullscreenMobile ? 'Sair da tela cheia' : 'Abrir em tela cheia'}
+                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[#7C879C] transition-colors duration-200 hover:bg-[#16233F] hover:text-white sm:hidden"
+                    >
+                      {this.state.fullscreenMobile ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m11-5v3a2 2 0 0 1-2 2h-3" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
 
-                  <div ref={this.chatRef} data-chat-scroll className="relative flex h-[600px] flex-col gap-4 overflow-y-auto bg-[#EEF0F3] p-6" style={{ scrollbarWidth: 'none' }}>
+                  <div
+                    ref={this.chatRef}
+                    data-chat-scroll
+                    className={
+                      this.state.fullscreenMobile
+                        ? 'relative flex flex-1 flex-col gap-4 overflow-y-auto bg-[#EEF0F3] p-6'
+                        : 'relative flex h-[600px] flex-col gap-4 overflow-y-auto bg-[#EEF0F3] p-6'
+                    }
+                    style={{ scrollbarWidth: 'none' }}
+                  >
                     <img src="/chat-watermark.png" alt="" className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[65%] max-w-[260px] -translate-x-1/2 -translate-y-1/2 opacity-50" />
                     {this.renderFlyingBubble()}
                     {this.state.messages.map((m) => this.renderMessage(m))}
                   </div>
 
-                  <div className="border-t border-[#EAEDF2] bg-[#EEF0F3] px-5 py-4.5">
+                  <div
+                    className="flex-shrink-0 border-t border-[#EAEDF2] bg-[#EEF0F3] px-5 py-4.5"
+                    style={this.state.fullscreenMobile ? { paddingBottom: 'calc(1.125rem + env(safe-area-inset-bottom))' } : undefined}
+                  >
                     {this.renderChatInput()}
-                    {this.renderComposer()}
+                    {!['intro', 'lead-nome', 'lead-estado', 'lead-cpf', 'lead-celular'].includes(this.state.stage) &&
+                      this.renderComposer()}
                   </div>
                 </div>
               </div>
@@ -1101,30 +1428,8 @@ export default class ChatSection extends React.Component<{}, State> {
           </div>
         </div>
 
-        {/* Testimonials grid */}
-        <div className="mx-auto mt-16 max-w-[1480px]">
-          <div className="mb-8 text-center">
-            <h2 className="mb-2 text-[clamp(20px,2.4vw,26px)] font-extrabold tracking-[-0.01em] text-navy">Nossos clientes</h2>
-            <p className="text-sm text-[#5B6478]">Histórias de quem buscou clareza, segurança e orientação.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {REVIEWS.map((review) => (
-              <div
-                key={review.name}
-                className="flex flex-col items-center rounded-[20px] border-solid border-[1.5px] border-[#8FB4EA] bg-[#EEF0F3] p-6 text-center shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]"
-              >
-                <div className="mb-5 h-20 w-20 flex-shrink-0 overflow-hidden rounded-full border-solid border-[1.5px] border-[#8FB4EA] shadow-sm transition-transform duration-300 hover:scale-150">
-                  <img src={review.image} alt={review.name} className="h-full w-full object-cover" />
-                </div>
-                <p className="mb-5 flex-1 text-base font-medium leading-[1.65] text-[#3B4457]">&ldquo;{review.quote}&rdquo;</p>
-                <div>
-                  <div className="text-[15px] font-extrabold text-navy">{review.name}</div>
-                  <div className="text-xs text-[#93A0B4]">Cliente Premium Office</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Social proof section */}
+        <SocialProof />
       </section>
     );
   }

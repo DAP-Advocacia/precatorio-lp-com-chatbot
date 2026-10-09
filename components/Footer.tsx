@@ -6,13 +6,13 @@ export default function Footer() {
     <footer className="bg-[#1F2331] px-5 py-10 sm:px-8 md:px-16">
       <div className="mx-auto flex max-w-[1280px] flex-wrap justify-between gap-8">
         <div className="flex-[1_1_260px]">
-          <img src="/logo-white.png" alt="Premium Office Precatório" className="mb-3.5 block h-[50px] w-auto" />
+          <img src="/logo-white.png" alt="Premium Office Precatórios" className="mb-3.5 block h-[50px] w-auto" />
           <p className="max-w-[320px] text-[13px] leading-[1.6] text-[#7C879C]">
             Antecipe seu precatório com segurança jurídica, transparência e estratégia.
           </p>
         </div>
         <div className="flex-[1_1_220px] text-[13px] leading-[1.9] text-[#8A96AC]">
-          <div>Premium Office Precatório</div>
+          <div>Premium Office Precatórios</div>
           <div>CNPJ 45.102.131/0001-18</div>
           <div>Av. das Américas, 3443 – Barra da Tijuca, RJ</div>
         </div>

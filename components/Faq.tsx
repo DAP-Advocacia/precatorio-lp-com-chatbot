@@ -38,7 +38,7 @@ export default function Faq() {
           <div className="hidden flex-[1_1_50%] lg:block">
             <img 
               src="/criativo-premium-office-celular.png" 
-              alt="Premium Office Precatório" 
+              alt="Premium Office Precatórios" 
               className="h-full w-full rounded-2xl object-cover shadow-lg"
             />
           </div>

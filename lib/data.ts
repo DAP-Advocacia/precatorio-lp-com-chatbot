@@ -153,8 +153,28 @@ export function analisarOficio(doc: typeof DEMO_OFICIO): Analise {
 }
 
 export const REVIEWS = [
-  { name: 'Família Frota', initials: 'FF', image: '/FamiliaFrota.png', quote: 'Graças a essa negociação, conseguimos viver um momento que jamais esqueceremos.' },
-  { name: 'Sra. Ana Paula', initials: 'AP', image: '/Sra.AnaPaula.jpg', quote: 'Depois de 20 anos esperando, hoje estamos com nossa vitória nas mãos.' },
-  { name: 'Sr. Kléber', initials: 'K', image: '/Kleber.jpg', quote: 'Eles cumpriram exatamente tudo o que prometeram.' },
-  { name: 'Sr. Alexandre e Sra. Rita', initials: 'AR', image: '/Sr.AlexandreeSra.Rita.jpg', quote: 'O dinheiro caiu na hora, exatamente como foi prometido.' },
+  {
+    name: 'Yuri Assunção',
+    meta: 'Local Guide · 11 reviews',
+    rating: 5,
+    quote: 'Empresa que atua de forma séria e ética com a antecipação dos valores a tanto aguardado, pelas pessoas que tem precatórios a receber.',
+  },
+  {
+    name: 'Jean Fabrício',
+    meta: '2 reviews',
+    rating: 5,
+    quote: 'Escritório incrível, fui atendido muito bem pela especialista Milena! Só tenho a agradecer!!!',
+  },
+  {
+    name: 'Paulo Vitor De Souza Pereira',
+    meta: '6 reviews',
+    rating: 5,
+    quote: 'Excelentes profissionais e uma resolução rápida e eficaz.',
+  },
+  {
+    name: 'Marcelo Annis',
+    meta: '6 reviews',
+    rating: 5,
+    quote: 'Gerente Franklin muito atencioso e prestativo, recomendo para todos.',
+  },
 ];
