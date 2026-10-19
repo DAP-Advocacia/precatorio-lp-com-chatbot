@@ -219,7 +219,7 @@ async function criarNegocio(input: LeadInput & { nome: string; celular: string }
   );
 
   const fields: Record<string, unknown> = {
-    TITLE: `${nome} - LP Chatbot (${protocolo})`,
+    TITLE: nome,
     CONTACT_ID: contactId,
     CATEGORY_ID: DEAL_CATEGORY_ID,
     STAGE_ID: DEAL_STAGE_ID,
