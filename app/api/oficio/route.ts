@@ -1,6 +1,7 @@
 import { NextResponse, after } from 'next/server';
 import { describeError, getClientIp, isValidClientSessionId, rateLimit } from '@/lib/server';
 import { registrarOficio } from '@/lib/bitrix';
+import { enriquecerNegocio } from '@/lib/infosimples';
 import {
   detectMime,
   estimateCostUsd,
@@ -12,7 +13,7 @@ import {
 } from '@/lib/oficio-extract';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const WA_HINT = 'Se preferir, envie pelo WhatsApp (21) 98645-0262.';
@@ -145,13 +146,16 @@ export async function POST(request: Request) {
   const upload = { name: sanitizeName(file.name || 'oficio', mime), base64: buffer.toString('base64') };
   after(async () => {
     try {
-      const { registrado } = await registrarOficio({
+      const { registrado, dealId } = await registrarOficio({
         sessionId: clientSessionId,
         cpf: cpfValido ? cpfDigits : null,
         fields: f,
         file: upload,
       });
       if (!registrado) console.warn('[api/oficio] ofício não anexado: nenhum Negócio para a sessão no Bitrix.');
+      // Consulta Infosimples (andamento + precatórios) com o CPF do ofício; o worker
+      // posta o resultado no card. Uma vez por sessão (cada chamada gasta crédito).
+      else if (cpfValido && dealId) await enriquecerNegocio({ sessionId: clientSessionId, cpf: cpfDigits, dealId });
     } catch (error) {
       console.error('[api/oficio] falha ao enviar o ofício ao Bitrix:', describeError(error));
     }

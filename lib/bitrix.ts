@@ -3,6 +3,7 @@
 // fica no próprio Bitrix (ORIGINATOR_ID + ORIGIN_ID do Deal).
 // Nunca logar payloads: contêm nome, CPF e telefone (LGPD).
 import { protocoloFromSession } from '@/lib/whatsapp';
+import type { OficioFields } from '@/lib/oficio-extract';
 
 // Pipeline "[LP] PREMIUM OFFICE v2", etapa "LP — Novo Lead" (etapa de sistema; não é a
 // primeira por ordenação, por isso precisa ser explícita). Sobrescrevíveis por env.
@@ -27,7 +28,10 @@ const DEAL_UF_MKT_ESTADO = 'UF_CRM_1767120845991'; // [MKT] Estado (string)
 const DEAL_UF_TIPO_PRECATORIO = 'UF_CRM_1756758368';
 const DEAL_UF_TRIBUNAL_FEDERAL = 'UF_CRM_1767021573716';
 const DEAL_UF_TRIBUNAL_ESTADUAL = 'UF_CRM_1767037264990';
-const DEAL_UF_LP_PRECATORIOS = 'UF_CRM_1772054165226';
+const DEAL_UF_LP_PRECATORIOS = 'UF_CRM_1772054165226'; // enum múltiplo
+const DEAL_UF_OFICIO_ARQUIVO = 'UF_CRM_1763026532088'; // [P] Ofício Precatório (arquivo, múltiplo)
+const DEAL_UF_TIPO_PROCESSO = 'UF_CRM_1746816651'; // [S] Tipo de processo
+const DEAL_TIPO_PROCESSO_TRABALHISTA_ID = '3812';
 const DEAL_UF_MKT_ORIGEM_LEAD = 'UF_CRM_1787687488497';
 const DEAL_ORIGEM_LEAD_LPIA_ID = '9387'; // LP-IA
 const DEAL_UF_MKT_FUNIL_ORIGEM = 'UF_CRM_1779394786511';
@@ -40,18 +44,48 @@ const ESTADO_ENUM_IDS: Record<string, string> = {
   RR: '147', RS: '149', SC: '151', SE: '153', SP: '155', TO: '157',
 };
 
-// tribunal identificado no ofício -> IDs de enumeração do Bitrix.
-const TRIBUNAL_IDS: { match: string; tipo: string; tribunal: string; lp?: string; field: string; uf: string }[] = [
-  { match: 'TRF1', tipo: '4648', field: DEAL_UF_TRIBUNAL_FEDERAL, tribunal: '5960', lp: '7496', uf: 'DF' },
-  { match: 'TRF2', tipo: '4648', field: DEAL_UF_TRIBUNAL_FEDERAL, tribunal: '5954', lp: '7498', uf: 'RJ' },
-  { match: 'TRF3', tipo: '4648', field: DEAL_UF_TRIBUNAL_FEDERAL, tribunal: '5956', lp: '7500', uf: 'SP' },
-  { match: 'TRF4', tipo: '4648', field: DEAL_UF_TRIBUNAL_FEDERAL, tribunal: '5962', lp: '7502', uf: 'RS' },
-  { match: 'TRF5', tipo: '4648', field: DEAL_UF_TRIBUNAL_FEDERAL, tribunal: '5958', lp: '7504', uf: 'PE' },
-  { match: 'TRF6', tipo: '4648', field: DEAL_UF_TRIBUNAL_FEDERAL, tribunal: '5966', lp: '7506', uf: 'MG' },
-  { match: 'TJSP', tipo: '4652', field: DEAL_UF_TRIBUNAL_ESTADUAL, tribunal: '6068', lp: '7510', uf: 'SP' },
-  { match: 'TJRJ', tipo: '4652', field: DEAL_UF_TRIBUNAL_ESTADUAL, tribunal: '6056', lp: '7508', uf: 'RJ' },
-  { match: 'TJMG', tipo: '4652', field: DEAL_UF_TRIBUNAL_ESTADUAL, tribunal: '6044', uf: 'MG' },
-];
+// Sigla do tribunal (normalizada pela IA) -> IDs de enumeração do Bitrix.
+const TIPO_PRECATORIO_IDS = { federal: '4648', municipal: '4650', estadual: '4652' } as const;
+const TRIBUNAL_FEDERAL_IDS: Record<string, string> = {
+  TRF1: '5960', TRF2: '5954', TRF3: '5956', TRF4: '5962', TRF5: '5958', TRF6: '5966',
+};
+const TRIBUNAL_FEDERAL_OUTROS_ID = '5964';
+const TRIBUNAL_ESTADUAL_IDS: Record<string, string> = {
+  TJAC: '6022', TJAL: '6024', TJAP: '6026', TJAM: '6028', TJBA: '6030', TJCE: '6032',
+  TJES: '6034', TJGO: '6036', TJMA: '6038', TJMT: '6040', TJMS: '6042', TJMG: '6044',
+  TJPA: '6046', TJPB: '6048', TJPR: '6050', TJPE: '6052', TJPI: '6054', TJRJ: '6056',
+  TJRN: '6058', TJRS: '6060', TJRO: '6062', TJRR: '6064', TJSC: '6066', TJSP: '6068',
+  TJSE: '6070', TJTO: '6072', TJDFT: '6074',
+};
+const TRIBUNAL_ESTADUAL_OUTRO_ID = '6076';
+// [LP] PRECATÓRIOS só tem opções para estes tribunais.
+const LP_PRECATORIOS_IDS: Record<string, string> = {
+  TRF1: '7496', TRF2: '7498', TRF3: '7500', TRF4: '7502', TRF5: '7504', TRF6: '7506',
+  TJRJ: '7508', TJSP: '7510', TJAL: '7512', TJPE: '7514', TJPA: '7516', TJMT: '7518',
+  TJMS: '7520', TJES: '7522',
+};
+
+function tribunalToFields(f: OficioFields): Record<string, unknown> {
+  const sigla = f.tribunal_sigla;
+  // Esfera pela leitura da IA; na dúvida, deduz do tribunal (TRF = federal, TJ = estadual).
+  let esfera = f.esfera;
+  if (esfera === 'desconhecida' && sigla) {
+    if (sigla.startsWith('TRF')) esfera = 'federal';
+    else if (sigla.startsWith('TJ')) esfera = 'estadual';
+  }
+  if (esfera === 'desconhecida') return {};
+
+  const out: Record<string, unknown> = { [DEAL_UF_TIPO_PRECATORIO]: TIPO_PRECATORIO_IDS[esfera] };
+  if (esfera === 'federal') {
+    out[DEAL_UF_TRIBUNAL_FEDERAL] = (sigla && TRIBUNAL_FEDERAL_IDS[sigla]) || (sigla ? TRIBUNAL_FEDERAL_OUTROS_ID : undefined);
+  } else if (esfera === 'estadual') {
+    out[DEAL_UF_TRIBUNAL_ESTADUAL] = (sigla && TRIBUNAL_ESTADUAL_IDS[sigla]) || (sigla ? TRIBUNAL_ESTADUAL_OUTRO_ID : undefined);
+  }
+  if (sigla && LP_PRECATORIOS_IDS[sigla]) out[DEAL_UF_LP_PRECATORIOS] = [LP_PRECATORIOS_IDS[sigla]];
+  if (sigla?.startsWith('TRT')) out[DEAL_UF_TIPO_PROCESSO] = DEAL_TIPO_PROCESSO_TRABALHISTA_ID;
+  for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
+  return out;
+}
 
 export type Attribution = Partial<
   Record<'utm_source' | 'utm_medium' | 'utm_campaign' | 'utm_content' | 'utm_term' | 'referrer', string | null>
@@ -219,7 +253,7 @@ async function criarNegocio(input: LeadInput & { nome: string; celular: string }
   );
 
   const fields: Record<string, unknown> = {
-    TITLE: nome,
+    TITLE: `LP da Marlene - ${nome}`,
     CONTACT_ID: contactId,
     CATEGORY_ID: DEAL_CATEGORY_ID,
     STAGE_ID: DEAL_STAGE_ID,
@@ -290,16 +324,7 @@ async function atualizarNegocio(deal: DealRef, input: LeadInput) {
 export type OficioInput = {
   sessionId: string;
   cpf: string | null; // só dígitos, já validado
-  fields: {
-    tipo: string;
-    credor: string | null;
-    processo: string | null;
-    tribunal: string | null;
-    ente_devedor: string | null;
-    natureza: string | null;
-    valor: number | null;
-    data_base: string | null;
-  };
+  fields: OficioFields;
   file: { name: string; base64: string };
 };
 
@@ -307,13 +332,12 @@ export type OficioInput = {
  * Anexa o ofício e os dados extraídos ao Negócio da sessão (timeline + campos de CPF,
  * processo e tribunal). Sem Negócio criado ainda (lead sem nome/celular), não grava.
  */
-export function registrarOficio(input: OficioInput): Promise<{ registrado: boolean }> {
+export function registrarOficio(input: OficioInput): Promise<{ registrado: boolean; dealId?: number }> {
   return withSessionLock(input.sessionId, async () => {
     const deal = await findDeal(input.sessionId);
     if (!deal) return { registrado: false };
 
     const f = input.fields;
-    const tribunalMap = TRIBUNAL_IDS.find((t) => (f.tribunal || '').toUpperCase().replace(/[\s-]/g, '').includes(t.match));
 
     const dealFields: Record<string, unknown> = {};
     if (input.cpf) {
@@ -322,11 +346,7 @@ export function registrarOficio(input: OficioInput): Promise<{ registrado: boole
       dealFields[DEAL_UF_CPF_BOT] = input.cpf;
     }
     if (f.processo) dealFields[DEAL_UF_NUMERO_PROCESSO] = sanitizeText(f.processo, 80);
-    if (tribunalMap) {
-      dealFields[DEAL_UF_TIPO_PRECATORIO] = tribunalMap.tipo;
-      dealFields[tribunalMap.field] = tribunalMap.tribunal;
-      if (tribunalMap.lp) dealFields[DEAL_UF_LP_PRECATORIOS] = tribunalMap.lp;
-    }
+    Object.assign(dealFields, tribunalToFields(f));
     if (Object.keys(dealFields).length) {
       await bitrixCall('crm.deal.update', { id: deal.dealId, fields: dealFields });
     }
@@ -345,6 +365,7 @@ export function registrarOficio(input: OficioInput): Promise<{ registrado: boole
     const linhas = [
       '[LP] Ofício requisitório enviado pelo cliente (dados lidos automaticamente por IA; conferir no documento anexo).',
       `Tipo: ${f.tipo}`,
+      f.esfera !== 'desconhecida' && `Esfera: ${f.esfera}`,
       f.credor && `Credor: ${sanitizeText(f.credor)}`,
       f.processo && `Nº do processo: ${sanitizeText(f.processo, 80)}`,
       f.tribunal && `Tribunal: ${sanitizeText(f.tribunal)}`,
@@ -354,14 +375,27 @@ export function registrarOficio(input: OficioInput): Promise<{ registrado: boole
       f.data_base && `Data-base: ${sanitizeText(f.data_base)}`,
     ].filter(Boolean);
 
+    // O original vai para o campo de arquivo do Negócio; se o Bitrix recusar, cai para o
+    // anexo do comentário para o consultor não ficar sem o documento.
+    let arquivoNoCampo = true;
+    try {
+      await bitrixCall('crm.deal.update', {
+        id: deal.dealId,
+        fields: { [DEAL_UF_OFICIO_ARQUIVO]: [[input.file.name, input.file.base64]] },
+      });
+    } catch (error) {
+      arquivoNoCampo = false;
+      console.error('[bitrix] falha ao gravar o ofício no campo de arquivo:', (error as Error).message);
+    }
+
     await bitrixCall('crm.timeline.comment.add', {
       fields: {
         ENTITY_ID: deal.dealId,
         ENTITY_TYPE: 'deal',
         COMMENT: linhas.join('\n'),
-        FILES: [[input.file.name, input.file.base64]],
+        ...(arquivoNoCampo ? {} : { FILES: [[input.file.name, input.file.base64]] }),
       },
     });
-    return { registrado: true };
+    return { registrado: true, dealId: deal.dealId };
   });
 }
