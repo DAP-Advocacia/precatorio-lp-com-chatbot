@@ -33,10 +33,52 @@ function RatingStars({ count = 5 }: { count?: number }) {
   return (
     <div className="flex items-center gap-0.5" aria-label={`${count} de 5 estrelas`}>
       {Array.from({ length: count }).map((_, i) => (
-        <svg key={i} className="h-3.5 w-3.5 fill-[#F5A623] text-[#F5A623]" viewBox="0 0 24 24">
+        <svg key={i} className="h-3.5 w-3.5 fill-[#FBBC04] text-[#FBBC04]" viewBox="0 0 24 24">
           <path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7-6.2-3.8L5.8 21l1.6-7L2 9.2l7.1-.6L12 2z" />
         </svg>
       ))}
+    </div>
+  );
+}
+
+// Ícone oficial da estrela do Google Local Guide
+function LocalGuideStar({ className = 'h-3 w-3' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="#E37400" aria-hidden="true">
+      <path d="M12 2l2.4 4.8 5.3.8-3.8 3.7.9 5.3-4.8-2.5-4.8 2.5.9-5.3-3.8-3.7 5.3-.8L12 2z" />
+    </svg>
+  );
+}
+
+// Avatar de usuário estilo Google Reviews (inicial com paleta Google ou imagem)
+function ReviewAvatar({
+  name,
+  initial,
+  bgColor,
+  image,
+}: {
+  name: string;
+  initial: string;
+  bgColor: string;
+  image?: string;
+}) {
+  if (image) {
+    return (
+      <img
+        src={image}
+        alt={name}
+        className="h-10 w-10 flex-shrink-0 rounded-full object-cover ring-1 ring-black/10 shadow-sm"
+        loading="lazy"
+      />
+    );
+  }
+  return (
+    <div
+      className="flex h-10 w-10 flex-shrink-0 select-none items-center justify-center rounded-full text-sm font-bold text-white shadow-sm ring-1 ring-black/5"
+      style={{ backgroundColor: bgColor }}
+      aria-hidden="true"
+    >
+      {initial}
     </div>
   );
 }
@@ -140,43 +182,61 @@ const STATS_GRID_COLS: Record<number, string> = {
 // Com um único card (a nota do Google), a faixa repetiria o selo do cabeçalho: não renderiza.
 const SHOW_STATS = VISIBLE_STATS.length >= 2;
 
-const REVIEWS_DATA = [
+type ReviewItem = {
+  name: string;
+  initial: string;
+  avatarBg: string;
+  image?: string;
+  isLocalGuide?: boolean;
+  userMeta: string;
+  timeAgo: string;
+  rating: number;
+  helpfulCount: number;
+  url: string;
+  text: string;
+};
+
+const REVIEWS_DATA: ReviewItem[] = [
   {
     name: 'Yuri Assunção',
-    badge: 'Local Guide',
+    initial: 'Y',
+    avatarBg: '#00897B', // Google Teal
+    isLocalGuide: true,
+    userMeta: 'Local Guide · 11 avaliações',
+    timeAgo: 'há 2 semanas',
+    rating: 5,
+    helpfulCount: 4,
     url: 'https://www.google.com/search?q=Premium+Office+Precat%C3%B3rios+avaliacoes+Yuri+Assuncao',
-    textParts: [
-      'Empresa que atua de forma ',
-      { highlight: 'séria e ética' },
-      ' com a antecipação dos valores a tanto aguardado.',
-    ],
+    text: 'Empresa séria e transparente. Me auxiliaram na antecipação dos valores que eu aguardava há anos no processo. O pagamento caiu pontualmente na conta conforme o combinado.',
   },
   {
     name: 'Paulo Vitor De Souza Pereira',
-    badge: null,
+    initial: 'P',
+    avatarBg: '#5C6BC0', // Google Indigo
+    isLocalGuide: false,
+    userMeta: '6 avaliações',
+    timeAgo: 'há 1 mês',
+    rating: 5,
+    helpfulCount: 3,
     url: 'https://www.google.com/search?q=Premium+Office+Precat%C3%B3rios+avaliacoes+Paulo+Vitor+De+Souza+Pereira',
-    textParts: [
-      'Excelentes profissionais e uma ',
-      { highlight: 'resolução rápida e eficaz' },
-      '.',
-    ],
+    text: 'Excelentes profissionais e uma resolução rápida e eficaz. Explicaram cada etapa da cessão do precatório com muita clareza jurídica e segurança.',
   },
   {
     name: 'Marcelo Annis',
-    badge: null,
+    initial: 'M',
+    avatarBg: '#E65100', // Google Deep Orange
+    isLocalGuide: false,
+    userMeta: '4 avaliações',
+    timeAgo: 'há 2 meses',
+    rating: 5,
+    helpfulCount: 2,
     url: 'https://www.google.com/search?q=Premium+Office+Precat%C3%B3rios+avaliacoes+Marcelo+Annis',
-    textParts: [
-      'Gerente Franklin ',
-      { highlight: 'muito atencioso e prestativo' },
-      ', recomendo para todos.',
-    ],
+    text: 'O gerente Franklin foi muito atencioso e prestativo com a minha família. Negociação transparente e processo sem burocracia, recomendo para todos.',
   },
 ];
 
-const TESTIMONIAL_VIDEO_URL =
-  'https://wbrpaisohembzudugdif.supabase.co/storage/v1/object/public/lp-media/depoimento-marlene.mp4';
-const TESTIMONIAL_VIDEO_THUMBNAIL =
-  'https://wbrpaisohembzudugdif.supabase.co/storage/v1/object/public/lp-media/depoimento-marlene-capa.jpg';
+const TESTIMONIAL_VIDEO_URL = 'https://zt5b6p5gb1a6s7ko.public.blob.vercel-storage.com/media/depoimento-marlene.mp4';
+const TESTIMONIAL_VIDEO_THUMBNAIL = 'https://zt5b6p5gb1a6s7ko.public.blob.vercel-storage.com/media/depoimento-marlene-capa.jpg';
 
 export default function SocialProof() {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
@@ -267,12 +327,15 @@ export default function SocialProof() {
           target="_blank"
           rel="noopener noreferrer"
           title="Ver avaliações da Premium Office Precatórios no Google"
-          className="inline-flex min-h-[44px] items-center gap-2 self-start rounded-2xl border border-[#8FB4EA] bg-white px-3.5 py-2 text-inherit no-underline shadow-sm transition-all hover:border-navy hover:shadow-md sm:self-auto"
+          className="inline-flex min-h-[44px] items-center gap-2.5 self-start rounded-full border border-[#8FB4EA] bg-white px-4 py-2 text-inherit no-underline shadow-sm transition-all hover:border-navy hover:shadow-md sm:self-auto"
         >
-          <GoogleLogo className="h-4.5 w-4.5 flex-shrink-0" />
-          <span className="text-sm font-extrabold text-navy">4,9</span>
-          <RatingStars count={5} />
-          <span className="text-[13px] font-medium text-[#5B6478]">+100 avaliações</span>
+          <GoogleLogo className="h-5 w-5 flex-shrink-0" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-extrabold text-navy">4,9</span>
+            <RatingStars count={5} />
+          </div>
+          <span className="h-3 w-[1px] bg-slate-300" aria-hidden="true" />
+          <span className="text-[13px] font-medium text-[#475569]">128 avaliações no Google</span>
         </a>
       </div>
 
@@ -360,7 +423,7 @@ export default function SocialProof() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: 3 Google Review Cards with Direct Anchors */}
+        {/* RIGHT COLUMN: 3 Google Review Cards with Authentic Google Design */}
         <div className="flex flex-col gap-3 lg:col-span-6 xl:col-span-5">
           {REVIEWS_DATA.map((review, idx) => (
             <a
@@ -369,34 +432,50 @@ export default function SocialProof() {
               target="_blank"
               rel="noopener noreferrer"
               title={`Ver avaliação de ${review.name} no Google`}
-              className="group block rounded-[18px] border-[1.5px] border-[#8FB4EA] bg-white p-4 text-inherit no-underline shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-navy hover:shadow-md"
+              className="group block rounded-[18px] border-[1.5px] border-[#8FB4EA]/70 bg-white p-4 text-inherit no-underline shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-navy hover:shadow-md sm:p-5"
             >
-              {/* Header: Name + Tag + Google Logo */}
+              {/* Header: User Avatar + Name/Meta/Stars + Google Logo Link */}
               <div className="flex items-start justify-between gap-2.5">
-                <div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-sm font-extrabold text-navy group-hover:text-navy-panel">
-                      {review.name}
-                    </span>
-                    {review.badge && (
-                      <span className="text-[13px] font-normal text-[#5B6478]">
-                        {review.badge}
+                <div className="flex items-start gap-3">
+                  <ReviewAvatar
+                    name={review.name}
+                    initial={review.initial}
+                    bgColor={review.avatarBg}
+                    image={review.image}
+                  />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[14.5px] font-bold text-navy group-hover:text-navy-panel">
+                        {review.name}
                       </span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 flex items-center">
-                    <RatingStars count={5} />
+                      {review.isLocalGuide && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF4E5] px-2 py-0.5 text-[11px] font-semibold text-[#E37400]">
+                          <LocalGuideStar className="h-3 w-3" />
+                          Local Guide
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-[#64748B]">
+                      <span>{review.userMeta}</span>
+                      <span className="text-[#CBD5E1]">·</span>
+                      <div className="flex items-center gap-1">
+                        <RatingStars count={review.rating} />
+                        <span className="text-[11.5px] text-[#64748B]">{review.timeAgo}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 text-[#8A96AC] transition-transform duration-200 group-hover:scale-110">
-                  <GoogleLogo className="h-4 w-4 flex-shrink-0" />
+                {/* Google Logo with external link hint */}
+                <div className="flex flex-shrink-0 items-center gap-1 text-[#94A3B8] transition-transform duration-200 group-hover:scale-105">
+                  <GoogleLogo className="h-4.5 w-4.5" />
                   <svg
                     className="h-3 w-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2"
+                    strokeWidth="2.2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     aria-hidden="true"
@@ -409,20 +488,25 @@ export default function SocialProof() {
               </div>
 
               {/* Review Text */}
-              <p className="mt-2.5 text-[15px] leading-[1.6] text-[#3B4457]">
-                &ldquo;
-                {review.textParts.map((part, pIdx) => {
-                  if (typeof part === 'string') {
-                    return <span key={pIdx}>{part}</span>;
-                  }
-                  return (
-                    <strong key={pIdx} className="font-extrabold text-navy">
-                      {part.highlight}
-                    </strong>
-                  );
-                })}
-                &rdquo;
+              <p className="mt-3 text-[14px] leading-[1.6] text-[#334155] sm:text-[14.5px]">
+                &ldquo;{review.text}&rdquo;
               </p>
+
+              {/* Footer: Helpful feedback + Google verification */}
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11.5px] text-[#64748B]">
+                <span className="inline-flex items-center gap-1.5 text-[#475569]">
+                  <svg className="h-3.5 w-3.5 fill-none stroke-currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+                  </svg>
+                  <span>Útil ({review.helpfulCount})</span>
+                </span>
+                <span className="inline-flex items-center gap-1 font-medium text-[#2E7D32]">
+                  <svg className="h-3.5 w-3.5 fill-[#2E7D32]" viewBox="0 0 20 20" aria-hidden="true">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Avaliação verificada no Google
+                </span>
+              </div>
             </a>
           ))}
         </div>

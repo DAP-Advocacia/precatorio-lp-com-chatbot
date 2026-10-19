@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Montserrat } from 'next/font/google';
-import { MantineProvider, ColorSchemeScript } from '@mantine/core';
-import '@mantine/core/styles.css';
 import './globals.css';
 
 const montserrat = Montserrat({
@@ -84,9 +82,8 @@ const organizationJsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={montserrat.variable} suppressHydrationWarning>
+    <html lang="pt-BR" className={montserrat.variable}>
       <head>
-        <ColorSchemeScript defaultColorScheme="light" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
@@ -109,7 +106,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </noscript>
           </>
         )}
-        <MantineProvider defaultColorScheme="light">{children}</MantineProvider>
+        {children}
       </body>
     </html>
   );

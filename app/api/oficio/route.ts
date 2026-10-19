@@ -1,14 +1,6 @@
-import { NextResponse } from 'next/server';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-  describeDbError,
-  ensureLpSession,
-  getClientIp,
-  getSupabaseAdmin,
-  hashIp,
-  isValidClientSessionId,
-  rateLimit,
-} from '@/lib/supabase';
+import { NextResponse, after } from 'next/server';
+import { describeError, getClientIp, isValidClientSessionId, rateLimit } from '@/lib/server';
+import { registrarOficio } from '@/lib/bitrix';
 import {
   detectMime,
   estimateCostUsd,
@@ -23,7 +15,6 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
-const BUCKET = 'lp-oficios';
 const WA_HINT = 'Se preferir, envie pelo WhatsApp (21) 98645-0262.';
 
 type Reason = 'too_large' | 'unsupported_type' | 'not_oficio' | 'extract_failed' | 'rate_limited' | 'bad_request';
@@ -58,39 +49,6 @@ function sanitizeName(name: string, mime: string) {
     .replace(/^_+|_+$/g, '')
     .slice(0, 60);
   return `${base || 'oficio'}.${EXT[mime] ?? 'bin'}`;
-}
-
-// Bucket privado provisionado sob demanda (service role): se ainda não existir no
-// projeto Supabase, é criado na primeira gravação, privado e restrito a 4 MB/tipos aceitos.
-let bucketReady = false;
-async function ensureBucket(supabase: SupabaseClient) {
-  if (bucketReady) return;
-  const { data, error } = await supabase.storage.getBucket(BUCKET);
-  if (data && !error) {
-    bucketReady = true;
-    return;
-  }
-  const { error: createError } = await supabase.storage.createBucket(BUCKET, {
-    public: false,
-    fileSizeLimit: MAX_FILE_BYTES,
-    allowedMimeTypes: Object.keys(EXT),
-  });
-  // Corrida com outra instância que criou o bucket ao mesmo tempo: segue normalmente.
-  if (createError && !/already exists|duplicate/i.test(createError.message || '')) throw createError;
-  bucketReady = true;
-}
-
-async function storeOficio(supabase: SupabaseClient, path: string, buffer: Buffer, mime: string): Promise<string | null> {
-  try {
-    await ensureBucket(supabase);
-    const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, { contentType: mime, upsert: false });
-    if (error) throw error;
-    return path;
-  } catch (error) {
-    bucketReady = false;
-    console.error('[api/oficio] falha ao guardar o arquivo:', describeDbError(error));
-    return null;
-  }
 }
 
 export async function POST(request: Request) {
@@ -132,24 +90,8 @@ export async function POST(request: Request) {
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
-  let supabase: SupabaseClient;
-  let sessionId: string;
-  let sessionCpf: string | null;
-  try {
-    supabase = getSupabaseAdmin();
-    const session = await ensureLpSession(supabase, clientSessionId, {
-      user_agent: request.headers.get('user-agent')?.slice(0, 500) || null,
-      ip_hash: hashIp(ip),
-    });
-    if (session.source !== 'home') return fail('bad_request', 'Sessão inválida. Recarregue a página.');
-    sessionId = session.id;
-    sessionCpf = session.lead_cpf;
-  } catch (error) {
-    console.error('[api/oficio] falha ao preparar sessão:', describeDbError(error));
-    return fail('extract_failed', `Não conseguimos receber o arquivo agora. Tente de novo. ${WA_HINT}`, 500);
-  }
 
-  // Nada é guardado antes da validação: só ofícios confirmados vão para o bucket.
+  // Nada é guardado antes da validação: só ofícios confirmados seguem para o Bitrix.
   // Documentos rejeitados (RG, CNH, extratos, HEIC ilegível, falhas de leitura) não
   // ficam armazenados (LGPD).
   if (mime === 'image/heic') {
@@ -165,26 +107,9 @@ export async function POST(request: Request) {
   }
 
   const result = await extractOficio({ apiKey, buffer, mime, filename: file.name || 'oficio.pdf' });
-  const baseSummary = { model: OFICIO_MODEL, mime, size_kb: Math.round(file.size / 1024) };
-
-  const logEvent = async (row: Record<string, unknown>) => {
-    const { error } = await supabase.from('integration_events').insert({
-      session_id: sessionId,
-      service: 'openai',
-      operation: 'oficio.extract',
-      latency_ms: result.latencyMs,
-      request_summary: baseSummary,
-      ...row,
-    });
-    if (error) console.error('[api/oficio] falha ao registrar evento:', describeDbError(error));
-  };
 
   if (!result.ok) {
-    await logEvent({
-      status: 'error',
-      http_status: result.httpStatus,
-      error_message: result.detail,
-    });
+    console.error('[api/oficio] extração falhou:', { model: OFICIO_MODEL, http: result.httpStatus, detail: result.detail });
     return fail('extract_failed', `Não conseguimos ler os dados do arquivo agora. Tente de novo. ${WA_HINT}`);
   }
 
@@ -196,21 +121,15 @@ export async function POST(request: Request) {
     (k) => (k === 'cpf' ? cpfValido : f[k] !== null)
   );
 
-  // Guarda o original (bucket privado) só depois de confirmado como ofício: o consultor
-  // precisa do documento. Falha de storage não bloqueia o retorno dos dados extraídos.
-  const storagePath = f.is_oficio
-    ? await storeOficio(supabase, `${clientSessionId}/${Date.now()}-${sanitizeName(file.name || 'oficio', mime)}`, buffer, mime)
-    : null;
-
-  await logEvent({
-    status: 'success',
-    http_status: 200,
-    input_tokens: result.usage.input_tokens,
-    output_tokens: result.usage.output_tokens,
+  console.info('[api/oficio] extração concluída:', {
+    model: OFICIO_MODEL,
+    mime,
+    size_kb: Math.round(file.size / 1024),
+    latency_ms: result.latencyMs,
     total_tokens: result.usage.total_tokens,
     cost_usd: estimateCostUsd(result.usage.input_tokens, result.usage.output_tokens),
-    request_summary: { ...baseSummary, storage_path: storagePath },
-    response_summary: { is_oficio: f.is_oficio, tipo: f.tipo, fields_found: found, stored: Boolean(storagePath) },
+    is_oficio: f.is_oficio,
+    fields_found: found,
   });
 
   if (!f.is_oficio) {
@@ -220,15 +139,23 @@ export async function POST(request: Request) {
     );
   }
 
-  // CPF completo fica só no servidor; preenche lead_cpf apenas se ainda vazio.
-  if (cpfValido && !sessionCpf) {
-    const { error } = await supabase
-      .from('chat_sessions')
-      .update({ lead_cpf: cpfDigits })
-      .eq('id', sessionId)
-      .is('lead_cpf', null);
-    if (error) console.error('[api/oficio] falha ao salvar CPF:', describeDbError(error));
-  }
+  // Só depois de confirmado como ofício o original e os dados vão para o Negócio da
+  // sessão no Bitrix (o consultor precisa do documento). O CPF completo fica só no
+  // servidor. Roda após a resposta e uma falha aqui não bloqueia o retorno ao usuário.
+  const upload = { name: sanitizeName(file.name || 'oficio', mime), base64: buffer.toString('base64') };
+  after(async () => {
+    try {
+      const { registrado } = await registrarOficio({
+        sessionId: clientSessionId,
+        cpf: cpfValido ? cpfDigits : null,
+        fields: f,
+        file: upload,
+      });
+      if (!registrado) console.warn('[api/oficio] ofício não anexado: nenhum Negócio para a sessão no Bitrix.');
+    } catch (error) {
+      console.error('[api/oficio] falha ao enviar o ofício ao Bitrix:', describeError(error));
+    }
+  });
 
   return NextResponse.json({
     ok: true,

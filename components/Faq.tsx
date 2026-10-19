@@ -1,7 +1,4 @@
-'use client';
-
 import Image from 'next/image';
-import { Accordion } from '@mantine/core';
 import { FAQ_DATA } from '@/lib/data';
 
 export default function Faq() {
@@ -15,25 +12,30 @@ export default function Faq() {
         </div>
 
         <div className="flex flex-col items-stretch gap-10 lg:flex-row lg:gap-16">
-          <div className="flex-[1_1_50%]">
-            <Accordion
-              variant="separated"
-              chevronPosition="right"
-              styles={{
-                item: { backgroundColor: '#F4F6F9', border: 'none', borderBottom: '1px solid #EAEDF2', borderRadius: '10px', padding: '4px 16px' },
-                control: { padding: '16px 4px', minHeight: 48 },
-                label: { fontSize: 16, fontWeight: 700, color: '#0B1B33', lineHeight: 1.4 },
-                content: { padding: '0 4px 16px', fontSize: 15, color: '#4A5366', lineHeight: 1.65 },
-                chevron: { color: '#0D1F38' },
-              }}
-            >
-              {FAQ_DATA.map((f, i) => (
-                <Accordion.Item key={i} value={String(i)}>
-                  <Accordion.Control>{f.question}</Accordion.Control>
-                  <Accordion.Panel>{f.answer}</Accordion.Panel>
-                </Accordion.Item>
-              ))}
-            </Accordion>
+          {/* <details> nativo: acessível por teclado e sem JavaScript no cliente. */}
+          <div className="flex flex-[1_1_50%] flex-col gap-4">
+            {FAQ_DATA.map((f) => (
+              <details
+                key={f.question}
+                className="group rounded-[10px] bg-[#F4F6F9] px-4 py-1"
+                style={{ borderBottom: '1px solid #EAEDF2' }}
+              >
+                <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-1 py-4 text-[16px] font-bold leading-[1.4] text-navy [&::-webkit-details-marker]:hidden">
+                  <span>{f.question}</span>
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 15 15"
+                    fill="none"
+                    aria-hidden="true"
+                    className="flex-shrink-0 text-navy-accent transition-transform duration-200 group-open:rotate-180"
+                  >
+                    <path d="M3.135 6.158a.5.5 0 0 1 .707-.023L7.5 9.565l3.658-3.43a.5.5 0 0 1 .684.73l-4 3.75a.5.5 0 0 1-.684 0l-4-3.75a.5.5 0 0 1-.023-.707Z" fill="currentColor" />
+                  </svg>
+                </summary>
+                <p className="m-0 px-1 pb-4 text-[15px] leading-[1.65] text-[#4A5366]">{f.answer}</p>
+              </details>
+            ))}
           </div>
 
           {/* Imagem só aparece no desktop. Com loading lazy dentro de display:none (abaixo de lg)

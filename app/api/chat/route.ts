@@ -1,15 +1,5 @@
-import { NextResponse, after } from 'next/server';
-import { ChatOpenAI } from '@langchain/openai';
-import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
-import {
-  describeDbError,
-  ensureLpSession,
-  getClientIp,
-  getSupabaseAdmin,
-  hashIp,
-  isValidClientSessionId,
-  rateLimit,
-} from '@/lib/supabase';
+import { NextResponse } from 'next/server';
+import { getClientIp, isValidClientSessionId, rateLimit } from '@/lib/server';
 import { WA_NUMBER } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
@@ -65,6 +55,41 @@ function bad(error: string, status = 400) {
   return NextResponse.json({ error }, { status });
 }
 
+// Chamada direta à API da OpenAI (sem SDK): 1 retentativa em 429/5xx/erro de rede, com um
+// prazo único de 25 s para o conjunto (a função tem maxDuration de 30 s).
+async function completeChat(
+  apiKey: string,
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
+): Promise<{ text: string; usage?: { total_tokens?: number } }> {
+  const signal = AbortSignal.timeout(25_000);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: MODEL, messages, temperature: 0.3, max_tokens: 350 }),
+        signal,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.choices?.[0]?.message?.content;
+        if (typeof text !== 'string' || !text.trim()) throw new Error('resposta vazia da OpenAI');
+        return { text, usage: data.usage };
+      }
+      const err: any = new Error(`OpenAI HTTP ${res.status}`);
+      err.status = res.status;
+      if (res.status !== 429 && res.status < 500) throw err;
+      lastError = err;
+    } catch (error: any) {
+      if (signal.aborted || (error?.status && error.status < 500 && error.status !== 429)) throw error;
+      lastError = error;
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 500));
+  }
+  throw lastError;
+}
+
 export async function POST(request: Request) {
   const startedAt = Date.now();
   const ip = getClientIp(request);
@@ -109,105 +134,24 @@ export async function POST(request: Request) {
     return bad('Assistente indisponível no momento.', 503);
   }
 
-  // Sessão e gravação da mensagem do usuário: falhas de banco não podem derrubar o chat
-  // nem ser registradas como erro da OpenAI.
-  let sessionId: string | null = null;
-  let supabase: ReturnType<typeof getSupabaseAdmin> | null = null;
-  try {
-    supabase = getSupabaseAdmin();
-    const session = await ensureLpSession(supabase, clientSessionId, {
-      user_agent: request.headers.get('user-agent')?.slice(0, 500) || null,
-      ip_hash: hashIp(ip),
-    });
-    if (session.source === 'home') {
-      sessionId = session.id;
-      const { error } = await supabase.from('chat_messages').insert({
-        session_id: sessionId,
-        role: 'user',
-        content: lastUserMessage.content,
-        kind: 'text',
-      });
-      if (error) console.error('[api/chat] falha ao gravar mensagem:', describeDbError(error));
-    }
-  } catch (error) {
-    console.error('[api/chat] falha de banco:', describeDbError(error));
-  }
-
-  const llm = new ChatOpenAI({
-    apiKey,
-    model: MODEL,
-    temperature: 0.3,
-    maxTokens: 350,
-    timeout: 25_000,
-    maxRetries: 1,
-  });
-  const chain = [
-    new SystemMessage(SYSTEM_PROMPT),
-    ...history.map((m) => (m.role === 'assistant' ? new AIMessage(m.content) : new HumanMessage(m.content))),
-  ];
-
   let aiText: string;
-  let usage: { input_tokens?: number; output_tokens?: number; total_tokens?: number } | undefined;
+  let usage: { total_tokens?: number } | undefined;
   try {
-    const response = await llm.invoke(chain);
-    aiText = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
-    usage = response.usage_metadata;
+    ({ text: aiText, usage } = await completeChat(apiKey, [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...history,
+    ]));
   } catch (error: any) {
-    const latency = Date.now() - startedAt;
     const message = String(error?.message ?? error).slice(0, 300);
-    console.error('[api/chat] erro do LLM:', message);
-    if (supabase) {
-      const db = supabase;
-      after(async () => {
-        await db.from('integration_events').insert({
-          session_id: sessionId,
-          service: 'openai',
-          operation: 'chat.completion',
-          status: 'error',
-          http_status: typeof error?.status === 'number' ? error.status : null,
-          latency_ms: latency,
-          error_message: message,
-          request_summary: { model: MODEL, history_len: history.length },
-        });
-      });
-    }
+    console.error('[api/chat] erro do LLM:', { message, status: error?.status, latency_ms: Date.now() - startedAt });
     return bad('Não consegui responder agora. Tente de novo ou fale no WhatsApp (21) 98645-0262.', 502);
   }
 
-  const latency = Date.now() - startedAt;
-  if (supabase) {
-    const db = supabase;
-    // Logs depois da resposta para não atrasar o usuário.
-    after(async () => {
-      try {
-        if (sessionId) {
-          await db.from('chat_messages').insert({
-            session_id: sessionId,
-            role: 'assistant',
-            content: aiText,
-            kind: 'text',
-          });
-          await db
-            .from('chat_sessions')
-            .update({ last_activity_at: new Date().toISOString() })
-            .eq('id', sessionId);
-        }
-        await db.from('integration_events').insert({
-          session_id: sessionId,
-          service: 'openai',
-          operation: 'chat.completion',
-          status: 'success',
-          latency_ms: latency,
-          input_tokens: usage?.input_tokens ?? null,
-          output_tokens: usage?.output_tokens ?? null,
-          total_tokens: usage?.total_tokens ?? null,
-          response_summary: { model: MODEL },
-        });
-      } catch (error) {
-        console.error('[api/chat] falha ao registrar logs:', describeDbError(error));
-      }
-    });
-  }
+  console.info('[api/chat] resposta:', {
+    model: MODEL,
+    latency_ms: Date.now() - startedAt,
+    total_tokens: usage?.total_tokens ?? null,
+  });
 
-  return NextResponse.json({ text: aiText, sessionId });
+  return NextResponse.json({ text: aiText });
 }

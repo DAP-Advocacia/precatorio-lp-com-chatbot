@@ -1,7 +1,6 @@
 import type { Config } from 'tailwindcss';
 
-// Preflight is disabled because Mantine ships its own CSS reset — running both
-// causes conflicting resets (see README "Tailwind + Mantine" section).
+// Preflight desligado: o reset enxuto fica em app/globals.css (não zera margens/estilos de lista).
 const config: Config = {
   content: [
     './app/**/*.{ts,tsx}',

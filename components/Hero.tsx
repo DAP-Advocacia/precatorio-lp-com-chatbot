@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useRef, type MouseEvent } from 'react';
+import Image from 'next/image';
+import { useRef, type MouseEvent } from 'react';
 import { openChat } from '@/lib/chat-events';
+import { useBeams } from '@/lib/useBeams';
 import { track } from '@/lib/track';
 
 const TRUST_MARKERS = ['Site seguro', 'Seus dados protegidos', 'Segurança jurídica em cada etapa'];
@@ -9,26 +11,7 @@ const TRUST_MARKERS = ['Site seguro', 'Seus dados protegidos', 'Segurança jurí
 export default function Hero() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    // mountBeams decide sozinho se monta (desktop, sem reduced-motion, aparelho capaz)
-    // e só então baixa o three. Caso contrário fica o gradiente estático da seção.
-    let cleanup: (() => void) | undefined;
-    let cancelled = false;
-    import('@/lib/beams')
-      .then(({ mountBeams }) => {
-        if (cancelled || !canvasRef.current) return;
-        cleanup = mountBeams(canvasRef.current, {
-          lightColor: '#0D1F38',
-          backgroundColor: '#0B1B33',
-          diffuseColor: '#050B16',
-        });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-      cleanup?.();
-    };
-  }, []);
+  useBeams(canvasRef);
 
   function handleCta(e: MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();
@@ -53,13 +36,13 @@ export default function Hero() {
 
       <div className="relative mx-auto flex max-w-[1280px] flex-col items-center justify-center pt-0 sm:pt-8">
         <div className="mx-auto flex w-full max-w-[800px] flex-col items-center text-center">
-          <img
+          <Image
             src="/logo-white.png"
             alt="Premium Office Precatórios"
             width={711}
             height={351}
-            fetchPriority="high"
-            decoding="async"
+            sizes="164px"
+            priority
             className="mb-4 block h-[52px] w-auto sm:mb-7 sm:h-[81px]"
           />
 

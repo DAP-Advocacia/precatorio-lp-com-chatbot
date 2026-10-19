@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { track } from '@/lib/track';
 import { whatsappLink, WA_DISPLAY } from '@/lib/whatsapp';
 
@@ -12,7 +13,7 @@ export default function Footer() {
     <footer className="bg-[#1F2331] px-5 pt-10 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-8 sm:pb-10 md:px-16">
       <div className="mx-auto flex max-w-[1280px] flex-wrap justify-between gap-8">
         <div className="min-w-0 flex-[1_1_260px]">
-          <img src="/logo-white.png" alt="Premium Office Precatórios" className="mb-3.5 block h-[50px] w-auto" />
+          <Image src="/logo-white.png" alt="Premium Office Precatórios" width={711} height={351} sizes="101px" className="mb-3.5 block h-[50px] w-auto" />
           <p className="m-0 max-w-[320px] text-sm leading-[1.6] text-[#9AA6BC]">
             Antecipe seu precatório com segurança jurídica, transparência e estratégia.
           </p>
@@ -55,8 +56,9 @@ export default function Footer() {
         </summary>
         <div className="mt-2 flex max-w-[760px] flex-col gap-2 [overflow-wrap:anywhere]">
           <p className="m-0">
-            <strong className="text-white">Quais dados:</strong> nome, celular, estado (UF), CPF, o ofício
-            ou documento que você enviar e as mensagens da conversa no site.
+            <strong className="text-white">Quais dados:</strong> nome, celular, estado (UF), CPF e o ofício
+            ou documento que você enviar. As mensagens da conversa no site não são gravadas em nossos
+            sistemas.
           </p>
           <p className="m-0">
             <strong className="text-white">Para quê:</strong> analisar o seu crédito, preparar a proposta
@@ -64,8 +66,8 @@ export default function Footer() {
           </p>
           <p className="m-0">
             <strong className="text-white">Com quem compartilhamos:</strong> os dados ficam armazenados
-            no Supabase (provedor de banco de dados e arquivos). As mensagens do chat e o documento
-            enviado são processados pela OpenAI para gerar as respostas e ler o ofício
+            no Bitrix24, o CRM que a Premium Office usa para atender você. As mensagens do chat e o
+            documento enviado são processados pela OpenAI para gerar as respostas e ler o ofício
             automaticamente.
           </p>
           <p className="m-0">

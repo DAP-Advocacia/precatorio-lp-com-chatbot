@@ -1,6 +1,6 @@
 // Captura de atribuição de mídia (UTMs, click IDs, referrer) na primeira página
 // vista da sessão. Persistida em sessionStorage para sobreviver a navegação interna
-// e enviada junto com o lead para as colunas utm_* / referrer de chat_sessions.
+// e enviada junto com o lead para o Bitrix (campos UTM e origem do tráfego do Negócio).
 
 export type Attribution = {
   utm_source?: string;

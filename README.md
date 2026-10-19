@@ -1,9 +1,9 @@
-# Premium Office Precatório — Next.js + Mantine + Tailwind
+# Premium Office Precatório — Next.js + Tailwind
 
 This is a recreation of the "Premium Office Precatório" landing page (hero, AI chat
 widget flow, quick calculator, testimonials, FAQ, footer) as a real **Next.js 16
 (App Router)** project on **React 19**, styled with **Tailwind CSS** for layout/utility
-classes and **Mantine UI v7** for interactive components (Tabs, Accordion, inputs, buttons).
+classes (sem biblioteca de componentes: FAQ em <details> nativo, botões do chat em CSS próprio).
 
 ## Requirements
 
@@ -22,31 +22,27 @@ Open http://localhost:3000.
 
 ```
 app/
-  layout.tsx        Mantine provider + font + global styles
-  globals.css        Tailwind directives + small global resets
+  layout.tsx        Font + metadata + GTM opcional
+  globals.css        Tailwind directives + reset enxuto + botão do chat (.po-btn)
   page.tsx           Assembles the page from the components below
 components/
   Hero.tsx           Top hero section with headline + CTA + example card
   ChatSection.tsx     Testimonials carousel + full AI chat flow + quick calculator
   ComoFunciona.tsx    "Como funciona" persuasive copy block
-  Vantagens.tsx       "Segurança em cada etapa" cards
-  Faq.tsx             FAQ accordion (Mantine Accordion)
+  Faq.tsx             FAQ (<details> nativo, server component)
   Footer.tsx
 lib/
-  data.ts             Mock data, IR/RRA + net-available math, discount table, FAQ + reviews
-  beams.js            WebGL beam-field background (three) mounted by Hero
+  data.ts             FAQ (também alimenta o JSON-LD)
+  beams.js            Guard + montagem sob demanda do fundo animado
+  beams-gl.js         Efeito WebGL (three, imports nomeados); só baixado em desktop capaz
 public/
   logo-white.png      Brand logo (white version, for dark backgrounds)
 ```
 
-## Tailwind + Mantine together
+## Tailwind
 
-Mantine ships its own CSS reset, so Tailwind's `preflight` is disabled in
-`tailwind.config.ts` to avoid the two resets fighting each other. Mantine's
-stylesheet (`@mantine/core/styles.css`) is imported in `app/layout.tsx` **before**
-`globals.css`, so Tailwind's utility classes still win when both target the same
-element. `postcss-preset-mantine` + `postcss-simple-vars` are wired in
-`postcss.config.mjs` per Mantine's official Next.js guide.
+O `preflight` do Tailwind está desligado em `tailwind.config.ts`; o reset enxuto (box-sizing,
+fonte herdada nos controles, tipografia base do body) fica em `app/globals.css`.
 
 ## Behavior notes vs. the original HTML prototype
 
@@ -78,12 +74,6 @@ The whole prototype is ported 1:1 — layout, flow, animations and math:
 - **WhatsApp links**: hardcoded to the prototype's number — update `waNumber`
   in `ChatSection.tsx` and `Footer.tsx`.
 
-## Mantine
-
-Mantine v7 (`MantineProvider` in `app/layout.tsx`) powers the FAQ accordion
-(`components/Faq.tsx`). The rest of the UI is hand-built with Tailwind + inline
-styles to match the prototype pixel-for-pixel.
-
 ## Design tokens
 
 Custom Tailwind colors (see `tailwind.config.ts`) mirror the source palette:
@@ -103,3 +93,23 @@ Font: Montserrat (400/500/600/700/800), loaded via `next/font/google`.
 - Add analytics + form validation before going to production.
 - Consider `next/image` instead of `<img>` for the logo once final hosting is set.
 # precatorio-lp-com-chatbot
+
+## Integrações e variáveis de ambiente
+
+O projeto é autônomo: não usa banco de dados próprio nem compartilha recursos com outros
+sistemas. Os dados captados no chat vão direto para o Bitrix24 (Contato + Negócio, ofício
+anexado na timeline), por rotas de servidor. O vínculo sessão -> Negócio fica no próprio
+Bitrix (`ORIGINATOR_ID=lp-chatbot`, `ORIGIN_ID=<id da sessão>`).
+
+| Variável | Obrigatória | Uso |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | sim | Chat e leitura do ofício |
+| `BITRIX_WEBHOOK_URL` | sim | Webhook de entrada do Bitrix24 (`https://<portal>/rest/<user>/<token>`). Sem ela `/api/lead` responde 503 |
+| `BITRIX_DEAL_CATEGORY_ID` | não | Funil do Negócio (padrão `534`) |
+| `BITRIX_DEAL_STAGE_ID` | não | Etapa inicial (padrão `C534:NEW`) |
+| `BITRIX_ASSIGNED_BY_ID` | não | Responsável do Negócio (padrão `178968`) |
+| `NEXT_PUBLIC_GTM_ID` | não | Google Tag Manager |
+
+Limitações conhecidas: sem fila de retry (falha no Bitrix é devolvida ao frontend, que tenta
+mais uma vez, mas o envio do ofício em segundo plano não é reprocessado) e a proteção contra
+Negócio duplicado vale por instância da função.

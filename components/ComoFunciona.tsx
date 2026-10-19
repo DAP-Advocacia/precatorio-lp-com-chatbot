@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, type MouseEvent } from 'react';
+import { useRef, type MouseEvent } from 'react';
 import { openChat } from '@/lib/chat-events';
+import { useBeams } from '@/lib/useBeams';
 import { track } from '@/lib/track';
 
 type TagType = 'user' | 'ai' | 'consultant';
@@ -77,26 +78,7 @@ function TagPill({ type }: { type: TagType }) {
 export default function ComoFunciona() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    // mountBeams só monta no desktop/aparelho capaz e sem reduced-motion; no resto
-    // fica o gradiente estático e o three nem é baixado.
-    let cleanup: (() => void) | undefined;
-    let cancelled = false;
-    import('@/lib/beams')
-      .then(({ mountBeams }) => {
-        if (cancelled || !canvasRef.current) return;
-        cleanup = mountBeams(canvasRef.current, {
-          lightColor: '#0D1F38',
-          backgroundColor: '#0B1B33',
-          diffuseColor: '#050B16',
-        });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-      cleanup?.();
-    };
-  }, []);
+  useBeams(canvasRef);
 
   function handleCta(e: MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();

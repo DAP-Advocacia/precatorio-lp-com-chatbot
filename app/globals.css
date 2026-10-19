@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+}
+
 html,
 body {
   margin: 0;
@@ -9,7 +13,17 @@ body {
   background: #e9ebef;
 }
 
-* {
+/* Base global (antes vinha do reset do Mantine): tipografia herdada pelos componentes. */
+body {
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -17,7 +31,64 @@ button,
 input,
 select,
 textarea {
-  font-family: inherit;
+  font: inherit;
+}
+
+button,
+select {
+  text-transform: none;
+}
+
+/* Botão do chat. Padrões do antigo Mantine Button (tamanho sm); cada uso sobrescreve
+   cor, borda, raio e padding por estilo inline. */
+.po-btn {
+  position: relative;
+  display: inline-block;
+  width: auto;
+  height: 36px;
+  padding-inline: 18px;
+  overflow: hidden;
+  vertical-align: middle;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: #228be6;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.po-btn:active {
+  transform: translateY(1px);
+}
+
+.po-btn:focus-visible {
+  outline: 2px solid #228be6;
+  outline-offset: 2px;
+}
+
+.po-btn:disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
+.po-btn-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+}
+
+.po-btn-label {
+  display: block;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  text-align: center;
 }
 
 select {
@@ -35,8 +106,8 @@ select {
   text-wrap: pretty;
 }
 
-/* Preflight do Tailwind está desligado (o Mantine traz o próprio reset, que não zera
-   margens). Reset de especificidade zero: qualquer classe utilitária (mt-*, mb-*) vence. */
+/* Preflight do Tailwind está desligado (reset enxuto acima, que não zera margens).
+   Reset de especificidade zero: qualquer classe utilitária (mt-*, mb-*) vence. */
 :where(h1, h2, h3, h4, h5, h6, p, blockquote, figure, ul, ol) {
   margin: 0;
 }

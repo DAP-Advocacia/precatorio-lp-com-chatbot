@@ -2,7 +2,7 @@
 
 // Cabeçalhos de segurança aplicados a todas as rotas. A CSP aqui cobre apenas
 // frame-ancestors (anti-clickjacking / páginas clonadas embutindo a LP); uma CSP completa
-// exigiria mapear GTM, Supabase e a mídia do vídeo antes de ser ativada.
+// exigiria mapear GTM, Vercel Blob (vídeo) e OpenAI/Bitrix antes de ser ativada.
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
   { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { CSSProperties } from 'react';
-import { Button, Paper } from '@mantine/core';
-import { formatBRL } from '@/lib/data';
+import NextImage from 'next/image';
+import React, { CSSProperties, ComponentPropsWithoutRef, ReactNode } from 'react';
+import { formatBRL } from '@/lib/format';
 import { captureAttribution, getAttribution } from '@/lib/attribution';
 import { track } from '@/lib/track';
 import { whatsappLink, protocoloFromSession } from '@/lib/whatsapp';
@@ -440,12 +440,29 @@ const SR_ONLY: CSSProperties = { position: 'absolute', width: '1px', height: '1p
 const TYPING_DOT: CSSProperties = { display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: '#5B6478', animation: 'blink 1.2s infinite' };
 
 // Button styles -----------------------------------------------------------------
-// O label do Mantine Button usa nowrap + overflow hidden: liberamos a quebra de linha
-// para rótulos longos em telas de 320–360px.
-const WRAP_BTN_STYLES: { inner: CSSProperties; label: CSSProperties } = {
-  inner: { height: 'auto' },
-  label: { whiteSpace: 'normal', overflow: 'visible', height: 'auto', textAlign: 'center' },
-};
+// Estrutura (.po-btn > inner > label) e padrões do antigo Mantine Button, definidos em
+// globals.css. O label quebra linha para rótulos longos em telas de 320–360px.
+function BtnLabel({ children }: { children: ReactNode }) {
+  return (
+    <span className="po-btn-inner">
+      <span className="po-btn-label">{children}</span>
+    </span>
+  );
+}
+function Btn({ className = '', children, ...rest }: ComponentPropsWithoutRef<'button'>) {
+  return (
+    <button {...rest} className={`po-btn ${className}`}>
+      <BtnLabel>{children}</BtnLabel>
+    </button>
+  );
+}
+function LinkBtn({ className = '', children, ...rest }: ComponentPropsWithoutRef<'a'>) {
+  return (
+    <a {...rest} className={`po-btn ${className}`}>
+      <BtnLabel>{children}</BtnLabel>
+    </a>
+  );
+}
 const PRIMARY_BTN: CSSProperties = { height: 'auto', minHeight: '48px', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #0D1F38', background: '#0D1F38', color: '#F7F5F1', fontWeight: 800, fontSize: '15px', textAlign: 'center', lineHeight: 1.35, textDecoration: 'none' };
 const SECONDARY_BTN: CSSProperties = { height: 'auto', minHeight: '48px', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #C9D0DC', background: '#fff', color: '#3B4457', fontWeight: 700, fontSize: '15px', textAlign: 'center', lineHeight: 1.35, textDecoration: 'none' };
 const PRIMARY_HOVER = 'transition-colors duration-250 hover:!bg-[#F7F5F1] hover:!text-navy-accent';
@@ -475,8 +492,6 @@ const prefersReducedMotion = () =>
 
 const isPhoneWidth = () => typeof window !== 'undefined' && window.innerWidth < 640;
 
-// GIF transparente 1x1: fallback de <picture> para que imagens só de desktop não sejam baixadas no celular.
-const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 // ---------------------------------------------------------------------------
 // Mensagens (memoizadas: digitar no composer não re-renderiza o histórico)
@@ -485,14 +500,14 @@ const MessageItem = React.memo(function MessageItem({ m }: { m: any }) {
   if (m.kind === 'typing') {
     return (
       <div data-msg-id={m.id} style={AI_WRAP}>
-        <Paper style={AI_BUBBLE}>
+        <div style={AI_BUBBLE}>
           <span style={SR_ONLY}>A assistente está digitando…</span>
           <span aria-hidden="true" style={{ display: 'inline-flex', gap: '5px', alignItems: 'center', height: '20px' }}>
             <span style={TYPING_DOT} />
             <span style={{ ...TYPING_DOT, animationDelay: '0.2s' }} />
             <span style={{ ...TYPING_DOT, animationDelay: '0.4s' }} />
           </span>
-        </Paper>
+        </div>
       </div>
     );
   }
@@ -500,7 +515,7 @@ const MessageItem = React.memo(function MessageItem({ m }: { m: any }) {
   if (m.kind === 'text' && m.from === 'user') {
     return (
       <div data-msg-id={m.id} style={m.noAnim ? USER_WRAP_NO_ANIM : USER_WRAP} className="max-w-[90%] self-end sm:max-w-[80%]">
-        <Paper style={USER_BUBBLE}>{m.text}</Paper>
+        <div style={USER_BUBBLE}>{m.text}</div>
       </div>
     );
   }
@@ -508,7 +523,7 @@ const MessageItem = React.memo(function MessageItem({ m }: { m: any }) {
   if (m.kind === 'text') {
     return (
       <div data-msg-id={m.id} style={AI_WRAP} className="max-w-[94%] sm:max-w-[85%]">
-        <Paper style={AI_BUBBLE}>{renderFormattedContent(m.text)}</Paper>
+        <div style={AI_BUBBLE}>{renderFormattedContent(m.text)}</div>
       </div>
     );
   }
@@ -516,7 +531,7 @@ const MessageItem = React.memo(function MessageItem({ m }: { m: any }) {
   if (m.kind === 'extract-card') {
     return (
       <div data-msg-id={m.id} style={AI_WRAP}>
-        <Paper style={CARD_BUBBLE}>
+        <div style={CARD_BUBBLE}>
           <div style={{ fontWeight: 800, fontSize: '15px', color: '#0B1B33', marginBottom: '10px' }}>Dados extraídos do documento</div>
           <dl style={{ margin: 0 }}>
             {m.items.map((item: any) => (
@@ -531,7 +546,7 @@ const MessageItem = React.memo(function MessageItem({ m }: { m: any }) {
           <p style={{ fontSize: '13px', color: '#5B6478', margin: '10px 0 0', lineHeight: 1.5 }}>
             Leitura automática. A proposta é feita por um especialista, sobre o valor líquido (após descontos legais), e não sobre o valor bruto.
           </p>
-        </Paper>
+        </div>
       </div>
     );
   }
@@ -928,6 +943,10 @@ export default class ChatSection extends React.Component<{}, State> {
     if (lead.estado) payloadLead.estado = lead.estado;
     if (payloadLead.nome || payloadLead.celular) this.leadPersisted = true;
     const hasContact = !!(payloadLead.nome && payloadLead.celular);
+    // O servidor só cria o lead com nome + celular e só registra resultados finais: antes
+    // disso (ex.: etapa 'lead_nome') a requisição não teria efeito, então nem é enviada.
+    const resultadoFinal = !!resultado && resultado !== 'em_andamento' && resultado !== 'lead_qualificado';
+    if (!hasContact && !resultadoFinal) return Promise.resolve(true);
 
     const clientSessionId = this.sid();
     if (!clientSessionId) return Promise.resolve(false);
@@ -987,9 +1006,7 @@ export default class ChatSection extends React.Component<{}, State> {
 
   renderWhatsappButton(label: string, motivo: string, origem: string, variant: 'primary' | 'secondary' = 'primary') {
     return (
-      <Button
-        styles={WRAP_BTN_STYLES}
-        component="a"
+      <LinkBtn
         href={this.waHref(motivo)}
         target="_blank"
         rel="noopener noreferrer"
@@ -998,7 +1015,7 @@ export default class ChatSection extends React.Component<{}, State> {
         style={variant === 'primary' ? PRIMARY_BTN : SECONDARY_BTN}
       >
         {label}
-      </Button>
+      </LinkBtn>
     );
   }
 
@@ -1574,9 +1591,9 @@ export default class ChatSection extends React.Component<{}, State> {
     if (stage === 'intro') {
       return (
         <div style={column}>
-          <Button styles={WRAP_BTN_STYLES} onClick={this.onStartClick} className={PRIMARY_HOVER} style={PRIMARY_BTN}>
+          <Btn onClick={this.onStartClick} className={PRIMARY_HOVER} style={PRIMARY_BTN}>
             Começar análise gratuita
-          </Button>
+          </Btn>
           {this.renderWhatsappButton('Prefiro falar no WhatsApp', 'Prefiro falar direto com um especialista.', 'intro', 'secondary')}
         </div>
       );
@@ -1624,15 +1641,14 @@ export default class ChatSection extends React.Component<{}, State> {
             }}
           />
           {this.renderLeadError()}
-          <Button
-            styles={WRAP_BTN_STYLES}
-            type="submit"
+          <Btn
+                        type="submit"
             disabled={!hasValue}
             className={PRIMARY_HOVER}
             style={{ ...PRIMARY_BTN, width: '100%', maxWidth: '340px', borderRadius: '999px', background: hasValue ? '#0D1F38' : '#B9C1D0', borderColor: hasValue ? '#0D1F38' : '#B9C1D0', color: '#fff' }}
           >
             Continuar
-          </Button>
+          </Btn>
         </form>
       );
     }
@@ -1725,9 +1741,8 @@ export default class ChatSection extends React.Component<{}, State> {
           </div>
           {this.renderLeadError()}
 
-          <Button
-            styles={WRAP_BTN_STYLES}
-            type="submit"
+          <Btn
+                        type="submit"
             disabled={!selectedUf}
             className={PRIMARY_HOVER}
             style={{
@@ -1743,7 +1758,7 @@ export default class ChatSection extends React.Component<{}, State> {
             }}
           >
             Continuar
-          </Button>
+          </Btn>
         </form>
       );
     }
@@ -1762,9 +1777,9 @@ export default class ChatSection extends React.Component<{}, State> {
             <div style={{ fontSize: '15px', fontWeight: 800, color: '#1C2331' }}>Enviar ofício (PDF ou foto)</div>
             <div style={{ fontSize: '13.5px', color: '#3B4457', marginTop: '3px', lineHeight: 1.45 }}>Toque para escolher o arquivo ou tirar a foto do documento · PDF até 4 MB</div>
           </label>
-          <Button styles={WRAP_BTN_STYLES} onClick={this.onNoOficio} className={SECONDARY_HOVER} style={SECONDARY_BTN}>
+          <Btn onClick={this.onNoOficio} className={SECONDARY_HOVER} style={SECONDARY_BTN}>
             Não tenho o ofício agora
-          </Button>
+          </Btn>
         </div>
       );
     }
@@ -1780,12 +1795,12 @@ export default class ChatSection extends React.Component<{}, State> {
     if (stage === 'confirm') {
       return (
         <div style={{ display: 'flex', gap: '10px' }}>
-          <Button styles={WRAP_BTN_STYLES} onClick={this.onCorrigirDados} className={SECONDARY_HOVER} style={{ ...SECONDARY_BTN, flex: 1, padding: '12px' }}>
+          <Btn onClick={this.onCorrigirDados} className={SECONDARY_HOVER} style={{ ...SECONDARY_BTN, flex: 1, padding: '12px' }}>
             Corrigir dados
-          </Button>
-          <Button styles={WRAP_BTN_STYLES} onClick={this.onConfirmarDados} className={PRIMARY_HOVER} style={{ ...PRIMARY_BTN, flex: 1, padding: '12px' }}>
+          </Btn>
+          <Btn onClick={this.onConfirmarDados} className={PRIMARY_HOVER} style={{ ...PRIMARY_BTN, flex: 1, padding: '12px' }}>
             Sim, conferem
-          </Button>
+          </Btn>
         </div>
       );
     }
@@ -1813,12 +1828,12 @@ export default class ChatSection extends React.Component<{}, State> {
         <div style={column}>
           {this.renderWhatsappButton('Adiantar pelo WhatsApp', 'Já enviei meu ofício pelo site.', 'dados_confirmados')}
           <div style={{ display: 'flex', gap: '10px' }}>
-            <Button styles={WRAP_BTN_STYLES} onClick={this.onCorrigirNumero} className={SECONDARY_HOVER} style={{ ...SECONDARY_BTN, flex: 1, padding: '12px' }}>
+            <Btn onClick={this.onCorrigirNumero} className={SECONDARY_HOVER} style={{ ...SECONDARY_BTN, flex: 1, padding: '12px' }}>
               Corrigir meu número
-            </Button>
-            <Button styles={WRAP_BTN_STYLES} onClick={this.onTenhoDuvida} className={SECONDARY_HOVER} style={{ ...SECONDARY_BTN, flex: 1, padding: '12px' }}>
+            </Btn>
+            <Btn onClick={this.onTenhoDuvida} className={SECONDARY_HOVER} style={{ ...SECONDARY_BTN, flex: 1, padding: '12px' }}>
               Tenho uma dúvida
-            </Button>
+            </Btn>
           </div>
         </div>
       );
@@ -1836,9 +1851,9 @@ export default class ChatSection extends React.Component<{}, State> {
       return (
         <div style={column}>
           {this.renderWhatsappButton('Falar com um especialista no WhatsApp', 'Já enviei meu ofício pelo site, mas o registro do contato falhou.', 'registro_falhou')}
-          <Button styles={WRAP_BTN_STYLES} onClick={(e) => this.onRetryConfirm(e)} className={SECONDARY_HOVER} style={SECONDARY_BTN}>
+          <Btn onClick={(e) => this.onRetryConfirm(e)} className={SECONDARY_HOVER} style={SECONDARY_BTN}>
             Tentar registrar de novo
-          </Button>
+          </Btn>
         </div>
       );
     }
@@ -2026,19 +2041,16 @@ export default class ChatSection extends React.Component<{}, State> {
                 style={fullscreenMobile ? { scrollbarWidth: 'none', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' } : { scrollbarWidth: 'none' }}
               >
                 {/* Marca d'água só a partir de 640px: no celular o arquivo nem é baixado. */}
-                <picture className="contents">
-                  <source media="(min-width: 640px)" srcSet="/chat-watermark.png" />
-                  <img
-                    src={BLANK_GIF}
-                    alt=""
-                    aria-hidden="true"
-                    width={500}
-                    height={500}
-                    loading="lazy"
-                    decoding="async"
-                    className="pointer-events-none absolute left-1/2 top-1/2 z-0 hidden h-auto w-[65%] max-w-[260px] -translate-x-1/2 -translate-y-1/2 opacity-50 sm:block"
-                  />
-                </picture>
+                <NextImage
+                  src="/chat-watermark.png"
+                  alt=""
+                  aria-hidden="true"
+                  width={500}
+                  height={500}
+                  sizes="260px"
+                  loading="lazy"
+                  className="pointer-events-none absolute left-1/2 top-1/2 z-0 hidden h-auto w-[65%] max-w-[260px] -translate-x-1/2 -translate-y-1/2 opacity-50 sm:block"
+                />
                 {this.renderFlyingBubble()}
                 <MessageList messages={this.state.messages} />
               </div>
@@ -2055,18 +2067,15 @@ export default class ChatSection extends React.Component<{}, State> {
 
           {/* RIGHT: promotional banner & how-it-works panel (sem valores de exemplo) — só desktop (lg) */}
           <div className="hidden min-w-[280px] max-w-[360px] flex-[1.2_1_280px] self-stretch lg:flex flex-col items-center justify-start gap-6">
-            <picture className="block w-full">
-              <source media="(min-width: 1024px)" srcSet="/side_banner.png" />
-              <img
-                src={BLANK_GIF}
-                alt="Antecipe hoje seu precatório — receba sua proposta 100% online e segura"
-                width={563}
-                height={756}
-                loading="lazy"
-                decoding="async"
-                className="block h-auto w-full rounded-[20px] object-cover shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]"
-              />
-            </picture>
+            <NextImage
+              src="/side_banner.png"
+              alt="Antecipe hoje seu precatório — receba sua proposta 100% online e segura"
+              width={563}
+              height={756}
+              sizes="360px"
+              loading="lazy"
+              className="block h-auto w-full rounded-[20px] object-cover shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]"
+            />
 
             <div className="w-full rounded-[20px] border border-navy-border bg-navy-panel p-5 shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]">
               <div className="mb-4 text-[12px] font-semibold uppercase tracking-[0.06em] text-[#AEB8CB]">
