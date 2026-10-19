@@ -34,3 +34,70 @@ select {
 .text-wrap-pretty {
   text-wrap: pretty;
 }
+
+/* Preflight do Tailwind está desligado (o Mantine traz o próprio reset, que não zera
+   margens). Reset de especificidade zero: qualquer classe utilitária (mt-*, mb-*) vence. */
+:where(h1, h2, h3, h4, h5, h6, p, blockquote, figure, ul, ol) {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-top: 16px;
+}
+
+/* Keyframes usados por estilos inline (ChatSection). O Tailwind só emite os keyframes
+   do tailwind.config.ts quando a classe animate-* correspondente é usada, então eles são
+   declarados aqui também (mesmas definições do tailwind.config.ts). */
+@keyframes aiIn {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes infoIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes barGrow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  /* Indicadores de carregamento continuam visíveis, só mais lentos e sem deslocamento. */
+  [style*='spin'],
+  .animate-spin {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

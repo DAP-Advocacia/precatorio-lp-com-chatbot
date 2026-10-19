@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { openChat } from '@/lib/chat-events';
+import { track } from '@/lib/track';
 
 // Google G logo component
 function GoogleLogo({ className = 'w-4 h-4' }: { className?: string }) {
@@ -42,7 +44,12 @@ function RatingStars({ count = 5 }: { count?: number }) {
 const GOOGLE_REVIEWS_URL =
   'https://www.google.com/search?q=Premium+Office+Precat%C3%B3rios+avaliacoes';
 
-const STATS_DATA = [
+// Só vão ao ar números com `verified: true`. '+ 8 anos', '+ 7 mil' e '+ 700M' ficam ocultos até a
+// empresa comprovar (o CNPJ do rodapé tem início de atividade em 2022; '+ 700M' não tem unidade
+// clara). Para publicar um número, revise o texto e marque `verified: true`.
+type Stat = { icon: React.ReactNode; value: string; label: string; verified: boolean };
+
+const STATS_DATA: Stat[] = [
   {
     icon: (
       <svg
@@ -60,6 +67,7 @@ const STATS_DATA = [
     ),
     value: '+ 8 anos',
     label: 'TEMPO DE MERCADO',
+    verified: false,
   },
   {
     icon: (
@@ -80,6 +88,7 @@ const STATS_DATA = [
     ),
     value: '+ 7 mil',
     label: 'CLIENTES SATISFEITOS',
+    verified: false,
   },
   {
     icon: (
@@ -98,6 +107,7 @@ const STATS_DATA = [
     ),
     value: '+ 700M',
     label: 'EM PRECATÓRIOS',
+    verified: false,
   },
   {
     icon: (
@@ -110,15 +120,25 @@ const STATS_DATA = [
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="8.5" cy="7" r="4" />
-        <polyline points="17 11 19 13 23 9" />
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       </svg>
     ),
-    value: '100 %',
-    label: 'SATISFAÇÃO DOS CLIENTES',
+    // Nota pública verificável no Perfil da Empresa no Google (mesma do selo acima).
+    value: '4,9 ★',
+    label: 'NOTA NO GOOGLE',
+    verified: true,
   },
 ];
+
+const VISIBLE_STATS = STATS_DATA.filter((s) => s.verified);
+// Classes estáticas (Tailwind JIT) por quantidade de cards visíveis.
+const STATS_GRID_COLS: Record<number, string> = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-2 lg:grid-cols-3',
+  4: 'grid-cols-2 lg:grid-cols-4',
+};
+// Com um único card (a nota do Google), a faixa repetiria o selo do cabeçalho: não renderiza.
+const SHOW_STATS = VISIBLE_STATS.length >= 2;
 
 const REVIEWS_DATA = [
   {
@@ -154,22 +174,90 @@ const REVIEWS_DATA = [
 ];
 
 const TESTIMONIAL_VIDEO_URL =
-  'https://player.mediadelivery.net/play/774224/72230f2e-9972-4cd3-b7dd-a1d20f1aae38';
+  'https://wbrpaisohembzudugdif.supabase.co/storage/v1/object/public/lp-media/depoimento-marlene.mp4';
 const TESTIMONIAL_VIDEO_THUMBNAIL =
-  'https://vz-b05a0ec7-146.b-cdn.net/72230f2e-9972-4cd3-b7dd-a1d20f1aae38/thumbnail.jpg';
+  'https://wbrpaisohembzudugdif.supabase.co/storage/v1/object/public/lp-media/depoimento-marlene-capa.jpg';
 
 export default function SocialProof() {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Trava de scroll do body: guarda o valor anterior e libera de forma idempotente, para que
+  // o CTA possa liberar antes de abrir o chat (que pode aplicar a própria trava).
+  const prevOverflowRef = useRef<string | null>(null);
+
+  const unlockBody = useCallback(() => {
+    if (prevOverflowRef.current === null) return;
+    document.body.style.overflow = prevOverflowRef.current;
+    prevOverflowRef.current = null;
+  }, []);
+
+  const openVideo = () => {
+    track('video_play', { origem: 'depoimento' });
+    setIsVideoModalOpen(true);
+  };
+
+  const closeVideo = useCallback(() => {
+    unlockBody();
+    setIsVideoModalOpen(false);
+    triggerRef.current?.focus();
+  }, [unlockBody]);
+
+  const startAnalysis = (origemCta: string) => {
+    track('cta_click', { origem: origemCta });
+    unlockBody();
+    setIsVideoModalOpen(false);
+    openChat('depoimento');
+  };
+
+  useEffect(() => {
+    if (!isVideoModalOpen) return;
+    prevOverflowRef.current = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeVideo();
+        return;
+      }
+      // Prende o foco dentro do diálogo (Tab / Shift+Tab circulam entre fechar, vídeo e CTA).
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const focusables = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], video[controls], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      const inside = active instanceof Node && dialogRef.current.contains(active);
+      if (e.shiftKey && (active === first || !inside)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || !inside)) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      unlockBody();
+    };
+  }, [isVideoModalOpen, closeVideo, unlockBody]);
 
   return (
-    <section className="mx-auto mt-12 max-w-[1480px]">
-      {/* Header with Title and Google Review Badge */}
+    <section data-screen-label="Prova Social" className="px-5 pt-0 pb-12 sm:px-8 sm:pt-0 sm:pb-16 md:px-16 md:pt-20 md:pb-20">
+      <div className="mx-auto max-w-[1480px]">
+        {/* Header with Title and Google Review Badge */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[clamp(20px,2.2vw,28px)] font-extrabold tracking-[-0.01em] text-navy">
+          <h2 className="m-0 text-[clamp(21px,2.2vw,28px)] font-extrabold leading-[1.25] tracking-[-0.01em] text-navy">
             Quem já recebeu seu precatório com a Premium Office Precatórios
           </h2>
-          <p className="mt-0.5 text-sm text-[#5B6478]">
+          <p className="mt-1 text-sm text-[#5B6478]">
             Avaliações reais de clientes no Google
           </p>
         </div>
@@ -179,59 +267,65 @@ export default function SocialProof() {
           target="_blank"
           rel="noopener noreferrer"
           title="Ver avaliações da Premium Office Precatórios no Google"
-          className="inline-flex items-center gap-2 self-start rounded-2xl border border-[#8FB4EA] bg-white px-3.5 py-2 text-inherit no-underline shadow-sm transition-all hover:border-navy hover:shadow-md sm:self-auto"
+          className="inline-flex min-h-[44px] items-center gap-2 self-start rounded-2xl border border-[#8FB4EA] bg-white px-3.5 py-2 text-inherit no-underline shadow-sm transition-all hover:border-navy hover:shadow-md sm:self-auto"
         >
           <GoogleLogo className="h-4.5 w-4.5 flex-shrink-0" />
-          <span className="text-sm font-extrabold text-navy">[4,9]</span>
+          <span className="text-sm font-extrabold text-navy">4,9</span>
           <RatingStars count={5} />
-          <span className="text-xs font-medium text-[#7C879C]">[N] avaliações</span>
+          <span className="text-[13px] font-medium text-[#5B6478]">+100 avaliações</span>
         </a>
       </div>
 
-      {/* Metrics Row (4 Cards) */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {STATS_DATA.map((stat, idx) => (
+      {/* Metrics Row: só números verificados */}
+      {SHOW_STATS && (
+      <div className={`grid gap-3 sm:gap-4 ${STATS_GRID_COLS[VISIBLE_STATS.length] ?? STATS_GRID_COLS[4]}`}>
+        {VISIBLE_STATS.map((stat, idx) => (
           <div
             key={idx}
-            className="flex flex-col items-center justify-center rounded-[18px] border-[1.5px] border-[#8FB4EA] bg-[#EEF0F3] px-3.5 py-4 text-center shadow-[0_3px_12px_rgba(11,27,51,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:px-4 sm:py-5"
+            className="flex flex-col items-center justify-center rounded-[18px] border-[1.5px] border-[#8FB4EA] bg-[#EEF0F3] px-3 py-4 text-center shadow-[0_3px_12px_rgba(11,27,51,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:px-4 sm:py-5"
           >
-            <div className="mb-2 flex items-center justify-center">
+            <div className="mb-2 flex items-center justify-center" aria-hidden="true">
               {stat.icon}
             </div>
-            <div className="text-[clamp(19px,2vw,24px)] font-extrabold tracking-tight text-navy">
+            <div className="text-[clamp(20px,2vw,24px)] font-extrabold tracking-tight text-navy">
               {stat.value}
             </div>
-            <div className="mt-1 text-[10.5px] font-bold uppercase tracking-wider text-[#5B6478] sm:text-xs">
+            <div className="mt-1 text-[13px] font-bold uppercase leading-[1.3] tracking-wide text-[#4A5366]">
               {stat.label}
             </div>
           </div>
         ))}
       </div>
+      )}
 
       {/* Bottom Two-Column Section: Video Testimonial (Left) + Google Reviews (Right) */}
       <div className="mt-5 grid grid-cols-1 items-start gap-4 sm:gap-5 lg:grid-cols-12">
         {/* LEFT COLUMN: Featured Video Card */}
         <div className="flex flex-col overflow-hidden rounded-[18px] border-[1.5px] border-[#8FB4EA] bg-white shadow-sm lg:col-span-6 xl:col-span-7">
           {/* Video Player Area */}
-          <div
-            onClick={() => setIsVideoModalOpen(true)}
-            className="group relative flex aspect-[16/9] w-full cursor-pointer items-center justify-center overflow-hidden bg-[#0D1F38] transition-colors"
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={openVideo}
+            aria-label="Assistir ao depoimento em vídeo de Marlene Vieira"
+            className="group relative m-0 flex aspect-[16/9] w-full cursor-pointer appearance-none items-center justify-center overflow-hidden border-0 bg-[#0D1F38] p-0 transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-sky"
           >
             {/* Video thumbnail */}
             <img
               src={TESTIMONIAL_VIDEO_THUMBNAIL}
-              alt="Depoimento em vídeo de Marlene Vieira, cliente Premium Office Precatórios"
+              alt=""
               className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"
+              decoding="async"
             />
             {/* Darkening overlay for contrast with play button/badge */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(13,31,56,0.25)_0%,rgba(13,31,56,0.75)_100%)]" />
+            <span className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(13,31,56,0.25)_0%,rgba(13,31,56,0.75)_100%)]" />
 
             {/* Play Button */}
-            <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_6px_20px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(255,255,255,0.4)]">
+            <span className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_6px_20px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(255,255,255,0.4)]">
               <svg
-                width="20"
-                height="20"
+                width="22"
+                height="22"
                 viewBox="0 0 24 24"
                 fill="#0B1B33"
                 className="ml-0.5"
@@ -239,24 +333,30 @@ export default function SocialProof() {
               >
                 <polygon points="6 3 20 12 6 21 6 3" />
               </svg>
-            </div>
+            </span>
 
             {/* Bottom-left Pill Badge */}
-            <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 rounded-md border border-white/15 bg-black/60 px-2.5 py-1 text-[10.5px] font-semibold text-white backdrop-blur-md">
-              <span>Depoimento em vídeo</span>
-            </div>
-          </div>
+            <span className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 rounded-md border border-white/15 bg-black/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-md">
+              Depoimento em vídeo
+            </span>
+          </button>
 
           {/* Video Card Details */}
           <div className="flex flex-col justify-between p-4 sm:p-5">
-            <blockquote className="text-sm font-bold leading-snug text-navy sm:text-base">
-              &ldquo;[Frase de destaque do cliente no vídeo]&rdquo;
-            </blockquote>
+            {/* Texto neutro, sem aspas: só publicar citação se for transcrição literal do vídeo
+                aprovada pela empresa (e sem prometer prazo, que varia por caso). */}
+            <p className="m-0 text-[15px] font-bold leading-[1.5] text-navy sm:text-base">
+              Assista ao depoimento de Marlene Vieira, aposentada, contando como foi a experiência
+              dela com a Premium Office Precatórios.
+            </p>
 
-            <div className="mt-3.5 border-t border-[#EAEDF2] pt-3">
-              <div className="text-[13px] font-extrabold text-navy">Marlene Vieira</div>
-              <div className="text-[11px] text-[#7C879C]">Aposentada</div>
-            </div>
+            <button
+              type="button"
+              onClick={() => startAnalysis('depoimento-card')}
+              className="mt-4 inline-flex min-h-[48px] w-full cursor-pointer items-center justify-center rounded-full border-0 bg-navy px-6 py-3 text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(11,27,51,0.2)] transition-colors hover:bg-navy-accent sm:w-auto sm:self-start"
+            >
+              Quero analisar meu precatório
+            </button>
           </div>
         </div>
 
@@ -269,17 +369,17 @@ export default function SocialProof() {
               target="_blank"
               rel="noopener noreferrer"
               title={`Ver avaliação de ${review.name} no Google`}
-              className="group block rounded-[18px] border-[1.5px] border-[#8FB4EA] bg-white p-3.5 text-inherit no-underline shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-navy hover:shadow-md sm:p-4"
+              className="group block rounded-[18px] border-[1.5px] border-[#8FB4EA] bg-white p-4 text-inherit no-underline shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-navy hover:shadow-md"
             >
               {/* Header: Name + Tag + Google Logo */}
               <div className="flex items-start justify-between gap-2.5">
                 <div>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[13px] font-extrabold text-navy group-hover:text-navy-panel sm:text-sm">
+                    <span className="text-sm font-extrabold text-navy group-hover:text-navy-panel">
                       {review.name}
                     </span>
                     {review.badge && (
-                      <span className="text-[10.5px] font-normal text-[#8A96AC]">
+                      <span className="text-[13px] font-normal text-[#5B6478]">
                         {review.badge}
                       </span>
                     )}
@@ -299,6 +399,7 @@ export default function SocialProof() {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    aria-hidden="true"
                   >
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                     <polyline points="15 3 21 3 21 9" />
@@ -308,7 +409,7 @@ export default function SocialProof() {
               </div>
 
               {/* Review Text */}
-              <p className="mt-2.5 text-[12.5px] leading-[1.55] text-[#3B4457] sm:text-[13px]">
+              <p className="mt-2.5 text-[15px] leading-[1.6] text-[#3B4457]">
                 &ldquo;
                 {review.textParts.map((part, pIdx) => {
                   if (typeof part === 'string') {
@@ -327,39 +428,67 @@ export default function SocialProof() {
         </div>
       </div>
 
-      {/* Interactive Video Modal Preview */}
+      {/* Video Modal: rola em paisagem, vídeo em largura total no celular, fecha com Esc. */}
       {isVideoModalOpen && (
         <div
-          onClick={() => setIsVideoModalOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/80 p-4 backdrop-blur-sm"
+          onClick={closeVideo}
+          className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-navy/90 backdrop-blur-sm sm:p-4"
+          style={{
+            paddingTop: 'env(safe-area-inset-top)',
+            paddingBottom: 'env(safe-area-inset-bottom)',
+          }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-[#8FB4EA]/40 bg-navy-card p-6 shadow-2xl"
-          >
-            <button
-              onClick={() => setIsVideoModalOpen(false)}
-              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-navy text-white hover:bg-navy-accent"
-              aria-label="Fechar"
+          <div className="flex min-h-full items-center justify-center">
+            <div
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Depoimento em vídeo de Marlene Vieira"
+              onClick={(e) => e.stopPropagation()}
+              className="relative mx-auto w-full min-w-[280px] max-w-[min(42rem,calc((100vh-180px)*16/9))] overflow-hidden bg-navy-card shadow-2xl sm:rounded-2xl sm:border sm:border-[#8FB4EA]/40"
             >
-              ✕
-            </button>
-            <div className="aspect-video w-full overflow-hidden rounded-xl bg-navy-deep">
-              <iframe
-                src={`${TESTIMONIAL_VIDEO_URL}?autoplay=true`}
-                title="Depoimento em vídeo — cliente Premium Office Precatórios"
-                loading="lazy"
-                className="h-full w-full border-0"
-                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                allowFullScreen
-              />
+              {/* Barra superior com o botão fechar, fora da área do vídeo (controles nativos) */}
+              <div className="flex items-center justify-between gap-3 py-1 pl-4 pr-1 sm:pl-5 sm:pr-2 sm:pt-2">
+                <span className="text-sm font-bold text-white">Marlene Vieira · Aposentada</span>
+                <button
+                  ref={closeRef}
+                  type="button"
+                  onClick={closeVideo}
+                  className="flex h-12 w-12 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-xl text-white transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky"
+                  aria-label="Fechar vídeo"
+                >
+                  <span aria-hidden="true">✕</span>
+                </button>
+              </div>
+              <div className="aspect-video w-full overflow-hidden bg-navy-deep sm:mx-auto sm:w-[calc(100%-2.5rem)] sm:rounded-xl">
+                <video
+                  src={TESTIMONIAL_VIDEO_URL}
+                  poster={TESTIMONIAL_VIDEO_THUMBNAIL}
+                  title="Depoimento em vídeo — cliente Premium Office Precatórios"
+                  className="block h-full w-full"
+                  controls
+                  autoPlay
+                  playsInline
+                  preload="metadata"
+                />
+              </div>
+              <div className="flex flex-col items-center gap-3 px-4 pb-5 pt-4 sm:px-5">
+                <button
+                  type="button"
+                  onClick={() => startAnalysis('depoimento-modal')}
+                  className="inline-flex min-h-[48px] w-full cursor-pointer items-center justify-center rounded-full border-0 bg-[#F7F5F1] px-6 py-3 text-[15px] font-extrabold text-navy-accent transition-colors hover:bg-white sm:w-auto"
+                >
+                  Quero analisar meu precatório
+                </button>
+                <p className="text-center text-[13px] text-[#9AA6BC]">
+                  Depoimento gravado com autorização do cliente.
+                </p>
+              </div>
             </div>
-            <p className="mt-3 text-center text-xs text-[#8A96AC]">
-              Depoimento gravado com autorização do cliente.
-            </p>
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }

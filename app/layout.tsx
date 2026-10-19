@@ -1,4 +1,5 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { Montserrat } from 'next/font/google';
 import { MantineProvider, ColorSchemeScript } from '@mantine/core';
 import '@mantine/core/styles.css';
@@ -13,6 +14,19 @@ const montserrat = Montserrat({
 // TODO: trocar pelo domínio real de produção assim que estiver definido.
 const SITE_URL = 'https://www.premiumoffice.com.br';
 
+// GTM opcional: só carrega quando NEXT_PUBLIC_GTM_ID estiver definido no ambiente.
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID?.trim() || '';
+const GTM_ID_SAFE = /^GTM-[A-Z0-9]+$/i.test(GTM_ID) ? GTM_ID : '';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  // 'cover' faz env(safe-area-inset-*) funcionar no iOS (barra fixa e chat em tela cheia).
+  // Sem maximumScale/userScalable: o público precisa poder dar zoom.
+  viewportFit: 'cover',
+  themeColor: '#0B1B33',
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -20,7 +34,7 @@ export const metadata: Metadata = {
     template: '%s | Premium Office Precatórios',
   },
   description:
-    'Descubra quanto vale seu precatório hoje. Análise gratuita por IA com revisão de especialistas, antecipação segura e transparente, sem compromisso.',
+    'Descubra se vale a pena antecipar seu precatório. Análise gratuita por IA com revisão de especialistas, antecipação segura e transparente, sem compromisso.',
   keywords: [
     'precatório',
     'antecipação de precatório',
@@ -40,13 +54,16 @@ export const metadata: Metadata = {
     siteName: 'Premium Office Precatórios',
     title: 'Premium Office Precatórios | Antecipação de Precatórios com Segurança Jurídica',
     description:
-      'Descubra quanto vale seu precatório hoje. Análise gratuita por IA com revisão de especialistas, antecipação segura e transparente, sem compromisso.',
-    images: [{ url: '/side_banner.png', width: 1200, height: 630, alt: 'Premium Office Precatórios' }],
+      'Descubra se vale a pena antecipar seu precatório. Análise gratuita por IA com revisão de especialistas, antecipação segura e transparente, sem compromisso.',
+    // TODO(asset): criar uma imagem 1200x630 dedicada para o preview de links (WhatsApp/Facebook).
+    // Até lá, declarar as dimensões reais do banner (retrato, 563x756) para não distorcer.
+    images: [{ url: '/side_banner.png', width: 563, height: 756, alt: 'Premium Office Precatórios' }],
   },
   twitter: {
-    card: 'summary_large_image',
+    // 'summary' até existir uma imagem 1200x630 (o banner atual é retrato).
+    card: 'summary',
     title: 'Premium Office Precatórios | Antecipação de Precatórios com Segurança Jurídica',
-    description: 'Descubra quanto vale seu precatório hoje. Análise gratuita por IA, com revisão de especialistas.',
+    description: 'Descubra se vale a pena antecipar seu precatório. Análise gratuita por IA, com revisão de especialistas.',
     images: ['/side_banner.png'],
   },
   robots: {
@@ -76,6 +93,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="font-sans bg-mist text-ink">
+        {GTM_ID_SAFE && (
+          <>
+            <Script id="gtm" strategy="afterInteractive">
+              {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_ID_SAFE}');`}
+            </Script>
+            <noscript>
+              <iframe
+                src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID_SAFE}`}
+                height="0"
+                width="0"
+                style={{ display: 'none', visibility: 'hidden' }}
+                title="Google Tag Manager"
+              />
+            </noscript>
+          </>
+        )}
         <MantineProvider defaultColorScheme="light">{children}</MantineProvider>
       </body>
     </html>

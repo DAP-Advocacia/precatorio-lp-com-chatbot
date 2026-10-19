@@ -7,6 +7,10 @@ const config: Config = {
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
   ],
+  // Envolve hover: em @media (hover: hover) para o estado não "grudar" após o toque no celular.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   corePlugins: {
     preflight: false,
   },

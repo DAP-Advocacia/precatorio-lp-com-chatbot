@@ -1,0 +1,55 @@
+'use client';
+
+import { openChat } from '@/lib/chat-events';
+import { track } from '@/lib/track';
+import { whatsappLink } from '@/lib/whatsapp';
+
+const WA_HREF = whatsappLink({ motivo: 'Vim pelo site e quero falar com um especialista.' });
+
+export default function CtaFinal() {
+  return (
+    <section
+      data-screen-label="CTA Final"
+      aria-labelledby="cta-final-titulo"
+      className="relative overflow-hidden bg-navy px-5 pt-14 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-8 sm:py-16 md:px-16 md:py-20"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,rgba(11,27,51,0.72)_0%,rgba(16,35,63,0.55)_55%,rgba(11,27,51,0.85)_100%)]" />
+
+      <div className="relative mx-auto flex max-w-[720px] flex-col items-center text-center">
+        <h2
+          id="cta-final-titulo"
+          className="m-0 text-[clamp(26px,3.4vw,38px)] font-extrabold leading-[1.2] tracking-[-0.02em] text-white text-wrap-pretty"
+        >
+          Descubra se vale a pena antecipar seu precatório
+        </h2>
+        <p className="mt-4 max-w-[560px] text-[17px] leading-[1.6] text-[#C7CFDE] text-wrap-pretty sm:text-lg">
+          Envie seu ofício e receba a análise de um especialista pelo WhatsApp.
+        </p>
+
+        <div className="mt-8 flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              track('cta_click', { origem: 'cta-final' });
+              openChat('cta-final');
+            }}
+            className="inline-flex min-h-[52px] cursor-pointer items-center justify-center rounded-full border border-[rgba(143,180,234,0.45)] bg-[#F7F5F1] px-7 py-3.5 text-base font-extrabold text-navy-accent shadow-[0_12px_32px_rgba(13,31,56,0.35)] transition-all duration-250 ease-out hover:-translate-y-px hover:bg-navy-accent hover:text-white"
+          >
+            Começar minha análise gratuita
+          </button>
+          <a
+            href={WA_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track('whatsapp_click', { origem: 'cta-final' })}
+            className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-sky/50 px-7 py-3.5 text-base font-bold text-sky no-underline transition-colors hover:border-white hover:text-white"
+          >
+            Falar no WhatsApp
+          </a>
+        </div>
+
+        <p className="mt-4 text-sm font-medium text-[#C7CFDE]">Sem custo · Sem compromisso</p>
+      </div>
+    </section>
+  );
+}

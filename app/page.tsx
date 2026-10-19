@@ -1,8 +1,9 @@
 import Hero from '@/components/Hero';
 import ChatSection from '@/components/ChatSection';
+import ComoFunciona from '@/components/ComoFunciona';
 import SocialProof from '@/components/SocialProof';
-
 import Faq from '@/components/Faq';
+import CtaFinal from '@/components/CtaFinal';
 import Footer from '@/components/Footer';
 import { FAQ_DATA } from '@/lib/data';
 
@@ -25,8 +26,10 @@ export default function Home() {
       />
       <Hero />
       <ChatSection />
+      <ComoFunciona />
       <SocialProof />
       <Faq />
+      <CtaFinal />
       <Footer />
     </div>
   );
