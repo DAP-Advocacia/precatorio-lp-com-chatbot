@@ -35,50 +35,50 @@ export default function ArticleLayout({
     <div className="min-h-screen overflow-x-hidden bg-mist text-ink font-sans">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(artigoJsonLd(artigo)) }} />
 
-      <header className="bg-navy bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(143,180,234,0.22)_0%,rgba(11,27,51,0)_70%),linear-gradient(180deg,#0B1B33_0%,#10233F_60%,#0B1B33_100%)] px-5 pt-5 pb-10 sm:px-8 sm:pb-14 md:px-16">
-        <div className="mx-auto max-w-[860px]">
-          <div className="mb-8 flex items-center justify-between gap-4 sm:mb-10">
-            <Link href="/" aria-label="Premium Office Precatórios, página inicial">
-              <Image
-                src="/logo-white.png"
-                alt="Premium Office Precatórios"
-                width={711}
-                height={351}
-                sizes="120px"
-                priority
-                className="block h-[44px] w-auto sm:h-[56px]"
-              />
-            </Link>
-            <Link href="/" className="text-sm font-semibold text-sky no-underline hover:text-white">
-              Página inicial
-            </Link>
-          </div>
-
-          <nav aria-label="Você está em" className="mb-4 text-[13px] font-medium text-[#9AA6BC]">
-            <Link href="/" className="text-[#9AA6BC] no-underline hover:text-white">
-              Início
-            </Link>
-            <span aria-hidden="true"> › </span>
-            <span className="text-[#C7CFDE]">{artigo.kicker}</span>
-          </nav>
-
-          <h1 className="m-0 text-[clamp(28px,5vw,44px)] font-extrabold leading-[1.18] tracking-[-0.02em] text-white text-wrap-pretty">
-            {artigo.titulo}
-          </h1>
-          <p className="m-0 mt-4 max-w-[680px] text-[17px] leading-[1.6] text-[#C7CFDE] text-wrap-pretty sm:text-lg">
-            {artigo.resumo}
-          </p>
-          <p className="m-0 mt-5 text-[13px] font-semibold text-[#9AA6BC]">
-            Por Premium Office Precatórios ·{' '}
-            <time dateTime={artigo.publicado}>
-              {new Date(`${artigo.publicado}T12:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </time>
-          </p>
+      <header className="border-b border-white/10 bg-navy bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(143,180,234,0.18)_0%,rgba(11,27,51,0)_70%),linear-gradient(180deg,#0B1B33_0%,#10233F_100%)] px-5 py-4 sm:px-8 sm:py-5 md:px-16">
+        <div className="mx-auto flex max-w-[760px] items-center justify-between gap-4">
+          <Link href="/" aria-label="Premium Office Precatórios, página inicial">
+            <Image
+              src="/logo-white.png"
+              alt="Premium Office Precatórios"
+              width={711}
+              height={351}
+              sizes="120px"
+              priority
+              className="block h-[40px] w-auto sm:h-[48px]"
+            />
+          </Link>
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-sky no-underline transition-colors hover:text-white">
+            <span aria-hidden="true">←</span> Página inicial
+          </Link>
         </div>
       </header>
 
-      <main className="px-5 py-10 sm:px-8 sm:py-14 md:px-16">
-        <article className="mx-auto max-w-[760px] rounded-2xl bg-white px-5 py-8 shadow-sm sm:px-10 sm:py-12">
+      <main className="px-5 py-8 sm:px-8 sm:py-12 md:px-16">
+        <article className="mx-auto max-w-[760px] rounded-2xl border border-[#8FB4EA]/40 bg-white px-5 py-8 shadow-sm sm:px-10 sm:py-12">
+          <nav aria-label="Você está em" className="mb-4 text-[13px] font-medium text-[#6B7487]">
+            <Link href="/" className="text-[#6B7487] no-underline hover:text-navy">
+              Início
+            </Link>
+            <span aria-hidden="true"> › </span>
+            <span className="font-semibold text-navy">{artigo.kicker}</span>
+          </nav>
+
+          <h1 className="m-0 text-[clamp(26px,4vw,38px)] font-extrabold leading-[1.2] tracking-[-0.02em] text-navy text-wrap-pretty">
+            {artigo.titulo}
+          </h1>
+
+          <p className="m-0 mt-3 text-[17px] leading-[1.6] text-[#4A5366] text-wrap-pretty sm:text-lg">
+            {artigo.resumo}
+          </p>
+
+          <div className="mt-4 mb-8 flex items-center gap-2 border-b border-[#E3E7EE] pb-6 text-[13px] font-semibold text-[#6B7487]">
+            <span>Por Premium Office Precatórios</span>
+            <span aria-hidden="true">·</span>
+            <time dateTime={artigo.publicado}>
+              {new Date(`${artigo.publicado}T12:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </time>
+          </div>
           {children}
 
           <aside className="mt-12 rounded-2xl bg-navy p-6 text-center sm:p-8" aria-label="Antecipar agora">
