@@ -13,4 +13,4 @@ export const SITE_NAME = 'Premium Office Precatórios';
 
 export const SEO_TITLE = 'Antecipação de Precatório: Análise Gratuita | Premium Office';
 export const SEO_DESCRIPTION =
-  'Descubra quanto vale seu precatório. Envie o ofício e receba análise gratuita por IA, revisada por especialistas, sem compromisso. Federal e estadual.';
+  'Antecipação de precatório: veja como antecipar seu precatório. Envie o ofício e receba análise gratuita por IA e especialistas, sem compromisso.';

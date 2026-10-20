@@ -1,6 +1,8 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
+import { LISTA_ARTIGOS } from '@/lib/artigos';
 import { track } from '@/lib/track';
 import { whatsappLink, WA_DISPLAY } from '@/lib/whatsapp';
 
@@ -22,6 +24,13 @@ export default function Footer() {
           <div>Premium Office Precatórios</div>
           <div>CNPJ 45.102.131/0001-18</div>
           <div>Av. das Américas, 3443 – Barra da Tijuca, RJ</div>
+          <nav aria-label="Artigos" className="mt-2 flex flex-col">
+            {LISTA_ARTIGOS.map((a) => (
+              <Link key={a.path} href={a.path} className="text-[#9AA6BC] underline-offset-2 hover:text-white hover:underline">
+                {a.titulo}
+              </Link>
+            ))}
+          </nav>
         </div>
         <div className="flex min-w-0 flex-[1_1_220px] flex-col items-start gap-2 text-sm leading-[1.6] text-[#9AA6BC]">
           <a

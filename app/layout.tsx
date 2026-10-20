@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Montserrat } from 'next/font/google';
+import AttributionCapture from '@/components/AttributionCapture';
 import { SEO_DESCRIPTION, SEO_TITLE, SITE_NAME, SITE_URL } from '@/lib/site';
 import './globals.css';
 
@@ -42,6 +43,9 @@ export const metadata: Metadata = {
     'precatório estadual',
     'quanto vale meu precatório',
     'antecipar precatório',
+    'antecipação precatório',
+    'como antecipar seu precatório',
+    'antecipar agora precatório',
     'ofício requisitório',
   ],
   authors: [{ name: 'Premium Office' }],
@@ -133,6 +137,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </noscript>
           </>
         )}
+        <AttributionCapture />
         {children}
       </body>
     </html>

@@ -47,7 +47,7 @@ export default function Hero() {
           />
 
           <div className="mb-6 hidden items-center gap-2 rounded-full border border-sky/30 bg-white/5 px-3.5 py-1.5 text-[13px] font-semibold text-sky sm:inline-flex">
-            Especialistas em precatórios · Titulares, herdeiros e advogados
+            Antecipação de precatório · Titulares, herdeiros e advogados
           </div>
 
           <h1 className="m-0 mb-4 max-w-[720px] text-[clamp(26px,7vw,46px)] font-extrabold leading-[1.2] tracking-[-0.02em] text-white text-wrap-pretty sm:mb-5 sm:text-[clamp(30px,4vw,46px)]">
