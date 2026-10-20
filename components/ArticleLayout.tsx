@@ -35,51 +35,57 @@ export default function ArticleLayout({
     <div className="min-h-screen overflow-x-hidden bg-mist text-ink font-sans">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(artigoJsonLd(artigo)) }} />
 
-      <header className="border-b border-white/10 bg-navy bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(143,180,234,0.18)_0%,rgba(11,27,51,0)_70%),linear-gradient(180deg,#0B1B33_0%,#10233F_100%)] px-5 py-4 sm:px-8 sm:py-5 md:px-16">
-        <div className="mx-auto flex max-w-[760px] items-center justify-between gap-4">
+      <header className="relative border-b border-white/10 bg-navy bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(143,180,234,0.18)_0%,rgba(11,27,51,0)_70%),linear-gradient(180deg,#0B1B33_0%,#10233F_100%)] px-5 py-4 sm:px-8 sm:py-5 md:px-16">
+        <Link
+          href="/"
+          aria-label="Voltar para a página inicial"
+          className="absolute left-5 top-1/2 inline-flex -translate-y-1/2 items-center gap-1.5 text-[13px] font-semibold text-sky no-underline transition-colors hover:text-white sm:left-8 sm:text-sm md:left-16"
+        >
+          <span aria-hidden="true">←</span> <span className="hidden sm:inline">Página inicial</span>
+        </Link>
+        <div className="mx-auto flex max-w-[760px] items-center justify-center">
           <Link href="/" aria-label="Premium Office Precatórios, página inicial">
             <Image
               src="/logo-white.png"
               alt="Premium Office Precatórios"
               width={711}
               height={351}
-              sizes="120px"
+              sizes="(min-width: 640px) 160px, 120px"
               priority
-              className="block h-[40px] w-auto sm:h-[48px]"
+              className="block h-[52px] w-auto sm:h-[72px]"
             />
-          </Link>
-          <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-sky no-underline transition-colors hover:text-white">
-            <span aria-hidden="true">←</span> Página inicial
           </Link>
         </div>
       </header>
 
       <main className="px-5 py-8 sm:px-8 sm:py-12 md:px-16">
-        <article className="mx-auto max-w-[760px] rounded-2xl border border-[#8FB4EA]/40 bg-white px-5 py-8 shadow-sm sm:px-10 sm:py-12">
-          <nav aria-label="Você está em" className="mb-4 text-[13px] font-medium text-[#6B7487]">
-            <Link href="/" className="text-[#6B7487] no-underline hover:text-navy">
+        <div className="mx-auto max-w-[760px]">
+          <nav aria-label="Você está em" className="mb-3 text-[13px] font-medium text-[#4B5563]">
+            <Link href="/" className="text-[#4B5563] no-underline hover:text-black">
               Início
             </Link>
             <span aria-hidden="true"> › </span>
-            <span className="font-semibold text-navy">{artigo.kicker}</span>
+            <span className="font-semibold text-black">{artigo.kicker}</span>
           </nav>
 
-          <h1 className="m-0 text-[clamp(26px,4vw,38px)] font-extrabold leading-[1.2] tracking-[-0.02em] text-navy text-wrap-pretty">
+          <h1 className="m-0 text-[clamp(28px,4.5vw,42px)] font-extrabold leading-[1.18] tracking-[-0.02em] text-black text-wrap-pretty">
             {artigo.titulo}
           </h1>
 
-          <p className="m-0 mt-3 text-[17px] leading-[1.6] text-[#4A5366] text-wrap-pretty sm:text-lg">
+          <p className="m-0 mt-3.5 text-[17px] leading-[1.6] text-[#374151] text-wrap-pretty sm:text-lg">
             {artigo.resumo}
           </p>
 
-          <div className="mt-4 mb-8 flex items-center gap-2 border-b border-[#E3E7EE] pb-6 text-[13px] font-semibold text-[#6B7487]">
+          <div className="mt-4 mb-7 flex items-center gap-2 text-[13px] font-semibold text-[#4B5563]">
             <span>Por Premium Office Precatórios</span>
             <span aria-hidden="true">·</span>
             <time dateTime={artigo.publicado}>
               {new Date(`${artigo.publicado}T12:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </time>
           </div>
-          {children}
+
+          <article className="rounded-2xl border border-[#8FB4EA]/40 bg-white px-5 py-8 shadow-sm sm:px-10 sm:py-12">
+            {children}
 
           <aside className="mt-12 rounded-2xl bg-navy p-6 text-center sm:p-8" aria-label="Antecipar agora">
             <div className="text-[clamp(21px,2.6vw,26px)] font-extrabold leading-[1.25] text-white text-wrap-pretty">
@@ -107,6 +113,7 @@ export default function ArticleLayout({
             validação documental e jurídica por um especialista.
           </p>
         </article>
+        </div>
       </main>
 
       <Footer />
