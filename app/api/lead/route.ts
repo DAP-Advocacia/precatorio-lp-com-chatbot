@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { describeError, getClientIp, isValidClientSessionId, rateLimit } from '@/lib/server';
-import { isBitrixConfigured, registrarLead, type Attribution } from '@/lib/bitrix';
+import { isBitrixConfigured, registrarLead, sanitizeAttribution } from '@/lib/bitrix';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -28,12 +28,6 @@ function bad(error: string, field?: Field, status = 400) {
 
 function isPresent(v: unknown) {
   return v !== undefined && v !== null && !(typeof v === 'string' && v.trim() === '');
-}
-
-function cleanAttr(v: unknown, max: number): string | null {
-  if (typeof v !== 'string') return null;
-  const s = v.trim().slice(0, max);
-  return s || null;
 }
 
 export async function POST(request: Request) {
@@ -107,15 +101,7 @@ export async function POST(request: Request) {
     return bad('Não foi possível registrar seus dados agora. Tente novamente.', undefined, 503);
   }
 
-  const attr = attribution && typeof attribution === 'object' ? attribution : {};
-  const attributionClean: Attribution = {
-    utm_source: cleanAttr(attr.utm_source, 200),
-    utm_medium: cleanAttr(attr.utm_medium, 200),
-    utm_campaign: cleanAttr(attr.utm_campaign, 200),
-    utm_content: cleanAttr(attr.utm_content, 200),
-    utm_term: cleanAttr(attr.utm_term, 200),
-    referrer: cleanAttr(attr.referrer, 500),
-  };
+  const attributionClean = sanitizeAttribution(attribution);
 
   try {
     await registrarLead({

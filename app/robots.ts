@@ -1,14 +1,15 @@
 import type { MetadataRoute } from 'next';
-
-// TODO: trocar pelo domínio real de produção assim que estiver definido.
-const SITE_URL = 'https://www.premiumoffice.com.br';
+import { SITE_URL } from '@/lib/site';
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
       allow: '/',
+      // Rotas de servidor (chat, lead, ofício) não têm valor para busca.
+      disallow: '/api/',
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   };
 }

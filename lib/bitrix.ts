@@ -87,9 +87,50 @@ function tribunalToFields(f: OficioFields): Record<string, unknown> {
   return out;
 }
 
-export type Attribution = Partial<
-  Record<'utm_source' | 'utm_medium' | 'utm_campaign' | 'utm_content' | 'utm_term' | 'referrer', string | null>
->;
+const ATTRIBUTION_KEYS = [
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_content',
+  'utm_term',
+  'utm_network',
+  'utm_placement',
+  'utm_site_source',
+  'campaign_id',
+  'adset_id',
+  'ad_id',
+  'gclid',
+  'fbclid',
+  'fbp',
+  'fbc',
+  'landing_page',
+  'landing_path',
+  'referrer',
+] as const;
+
+export type Attribution = Partial<Record<(typeof ATTRIBUTION_KEYS)[number], string | null>>;
+
+const ATTRIBUTION_MAX: Partial<Record<(typeof ATTRIBUTION_KEYS)[number], number>> = {
+  landing_page: 1000,
+  landing_path: 500,
+  referrer: 500,
+};
+const ATTRIBUTION_ID_KEYS = new Set(['campaign_id', 'adset_id', 'ad_id']);
+
+// Valida o objeto vindo do navegador: só chaves conhecidas, texto sem controle/HTML, IDs numéricos.
+export function sanitizeAttribution(raw: unknown): Attribution {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const out: Attribution = {};
+  for (const key of ATTRIBUTION_KEYS) {
+    const v = src[key];
+    if (typeof v !== 'string') continue;
+    const s = sanitizeText(v, ATTRIBUTION_MAX[key] ?? 300);
+    if (!s) continue;
+    if (ATTRIBUTION_ID_KEYS.has(key) && !/^\d{1,30}$/.test(s)) continue;
+    out[key] = s;
+  }
+  return out;
+}
 
 type DealRef = { dealId: number; contactId: number | null };
 
@@ -155,6 +196,7 @@ async function findDeal(sessionId: string): Promise<DealRef | null> {
   return ref;
 }
 
+// Campos UTM padrão do Bitrix: valem para Contato e Negócio.
 function attributionFields(attr: Attribution): Record<string, string> {
   const out: Record<string, string> = {};
   if (attr.utm_source) out.UTM_SOURCE = attr.utm_source;
@@ -165,6 +207,33 @@ function attributionFields(attr: Attribution): Record<string, string> {
   return out;
 }
 
+// Campos customizados [MKT] do Negócio (IDs confirmados via bitrix24_list_fields).
+// Landing page, referrer, placement e site_source não têm campo próprio: vão no COMMENTS.
+function attributionDealFields(attr: Attribution): Record<string, string> {
+  const map: [keyof Attribution, string][] = [
+    ['utm_source', 'UF_CRM_1757529266'],
+    ['utm_medium', 'UF_CRM_1757529375'],
+    ['utm_campaign', 'UF_CRM_1757529487'],
+    ['utm_content', 'UF_CRM_1757529541'],
+    ['utm_term', 'UF_CRM_1757529604'],
+    ['utm_network', 'UF_CRM_1773700496276'],
+    ['campaign_id', 'UF_CRM_1766855908'],
+    ['adset_id', 'UF_CRM_1766856604852'],
+    ['adset_id', 'UF_CRM_1773749927195'], // utm_adgroup_id (conjunto = grupo de anúncios)
+    ['ad_id', 'UF_CRM_1766857251673'],
+    ['gclid', 'UF_CRM_1773701073731'],
+    ['fbclid', 'UF_CRM_1757529694'],
+    ['fbp', 'UF_CRM_1757529829'],
+    ['fbc', 'UF_CRM_1757529778'],
+  ];
+  const out: Record<string, string> = {};
+  for (const [key, field] of map) {
+    const value = attr[key];
+    if (value) out[field] = value;
+  }
+  return out;
+}
+
 function attributionText(attr: Attribution): string {
   const lines: string[] = [];
   if (attr.utm_source) lines.push(`Origem (source): ${attr.utm_source}`);
@@ -172,6 +241,13 @@ function attributionText(attr: Attribution): string {
   if (attr.utm_campaign) lines.push(`Campanha: ${attr.utm_campaign}`);
   if (attr.utm_content) lines.push(`Conteúdo: ${attr.utm_content}`);
   if (attr.utm_term) lines.push(`Termo: ${attr.utm_term}`);
+  if (attr.campaign_id) lines.push(`ID da campanha: ${attr.campaign_id}`);
+  if (attr.adset_id) lines.push(`ID do conjunto: ${attr.adset_id}`);
+  if (attr.ad_id) lines.push(`ID do anúncio: ${attr.ad_id}`);
+  if (attr.utm_network) lines.push(`Network: ${attr.utm_network}`);
+  if (attr.utm_placement) lines.push(`Placement: ${attr.utm_placement}`);
+  if (attr.utm_site_source) lines.push(`Site source: ${attr.utm_site_source}`);
+  if (attr.landing_page) lines.push(`Landing page: ${attr.landing_page}`);
   if (attr.referrer) lines.push(`Referrer: ${attr.referrer}`);
   return lines.length ? `\n\nOrigem do tráfego:\n${lines.map((l) => `- ${l}`).join('\n')}` : '';
 }
@@ -269,6 +345,7 @@ async function criarNegocio(input: LeadInput & { nome: string; celular: string }
     [DEAL_UF_MKT_ORIGEM_LEAD]: DEAL_ORIGEM_LEAD_LPIA_ID,
     [DEAL_UF_MKT_FUNIL_ORIGEM]: DEAL_FUNIL_PREMIUM_OFFICE_ID,
     ...attributionFields(attr),
+    ...attributionDealFields(attr),
   };
   const estadoFields = estadoToFields(input.estado);
   Object.assign(fields, estadoFields);

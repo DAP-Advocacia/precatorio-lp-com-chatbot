@@ -1,7 +1,5 @@
 import type { MetadataRoute } from 'next';
-
-// TODO: trocar pelo domínio real de produção assim que estiver definido.
-const SITE_URL = 'https://www.premiumoffice.com.br';
+import { SITE_URL } from '@/lib/site';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
