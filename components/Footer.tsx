@@ -1,8 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
-import { LISTA_ARTIGOS } from '@/lib/artigos';
+import { asset } from '@/lib/site';
 import { track } from '@/lib/track';
 import { whatsappLink, WA_DISPLAY } from '@/lib/whatsapp';
 
@@ -15,7 +14,7 @@ export default function Footer() {
     <footer className="bg-[#1F2331] px-5 pt-10 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-8 sm:pb-10 md:px-16">
       <div className="mx-auto flex max-w-[1280px] flex-wrap justify-between gap-8">
         <div className="min-w-0 flex-[1_1_260px]">
-          <Image src="/logo-white.png" alt="Premium Office Precatórios" width={711} height={351} sizes="101px" className="mb-3.5 block h-[50px] w-auto" />
+          <Image src={asset('/logo-white.png')} alt="Premium Office Precatórios" width={711} height={351} sizes="101px" className="mb-3.5 block h-[50px] w-auto" />
           <p className="m-0 max-w-[320px] text-sm leading-[1.6] text-[#9AA6BC]">
             Antecipe seu precatório com segurança jurídica, transparência e estratégia.
           </p>
@@ -24,13 +23,6 @@ export default function Footer() {
           <div>Premium Office Precatórios</div>
           <div>CNPJ 45.102.131/0001-18</div>
           <div>Av. das Américas, 3443 – Barra da Tijuca, RJ</div>
-          <nav aria-label="Artigos" className="mt-2 flex flex-col">
-            {LISTA_ARTIGOS.map((a) => (
-              <Link key={a.path} href={a.path} className="text-[#9AA6BC] underline-offset-2 hover:text-white hover:underline">
-                {a.titulo}
-              </Link>
-            ))}
-          </nav>
         </div>
         <div className="flex min-w-0 flex-[1_1_220px] flex-col items-start gap-2 text-sm leading-[1.6] text-[#9AA6BC]">
           <a

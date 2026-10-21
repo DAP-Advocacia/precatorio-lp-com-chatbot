@@ -4,6 +4,8 @@
 // Nunca logar payloads: contêm nome, CPF e telefone (LGPD).
 import { protocoloFromSession } from '@/lib/whatsapp';
 import type { OficioFields } from '@/lib/oficio-extract';
+import { VARIANTE_ROTULO, type Variante } from '@/lib/variante';
+import { triarLead, type ConversaMsg, type OficioSnapshot, type Triagem } from '@/lib/triagem';
 
 // Pipeline "[LP] PREMIUM OFFICE v2", etapa "LP — Novo Lead" (etapa de sistema; não é a
 // primeira por ordenação, por isso precisa ser explícita). Sobrescrevíveis por env.
@@ -36,6 +38,24 @@ const DEAL_UF_MKT_ORIGEM_LEAD = 'UF_CRM_1787687488497';
 const DEAL_ORIGEM_LEAD_LPIA_ID = '9387'; // LP-IA
 const DEAL_UF_MKT_FUNIL_ORIGEM = 'UF_CRM_1779394786511';
 const DEAL_FUNIL_PREMIUM_OFFICE_ID = '8812'; // LP PREMIUM OFFICE
+const DEAL_UF_TELEFONE = 'UF_CRM_1703003118139'; // [+] Telefone
+const DEAL_UF_AUTORIZA_WA = 'UF_CRM_AUTORIZA_WA'; // listado como ufCrmAutorizaWa; o REST clássico usa UPPER_SNAKE
+const DEAL_AUTORIZA_WA_SIM_ID = '9207';
+const DEAL_AUTORIZA_WA_NAO_ID = '9208';
+const DEAL_UF_DE_ONDE_VEIO = 'UF_CRM_1767974630587'; // [S] De onde veio o Lead?
+const DEAL_DE_ONDE_VEIO_IDS = { ia: '6212', facebook: '6214', instagram: '6216', outros: '6218' } as const;
+const DEAL_UF_TIPO_TRAFEGO = 'UF_CRM_1761655904'; // [MKT] Tipo de Tráfego
+const DEAL_TRAFEGO_PAGO_ID = '5428';
+const DEAL_TRAFEGO_ORGANICO_ID = '5430';
+const DEAL_UF_TEM_DOCUMENTOS = 'UF_CRM_1772737471562'; // [LP] TEM DOCUMENTOS?
+const DEAL_UF_TEM_PROCESSO = 'UF_CRM_1772737103535'; // [LP] TEM PROCESSO OU NOTIFICAÇÃO?
+const SIM_NAO_IDS = { documentos: { sim: '7548', nao: '7550' }, processo: { sim: '7544', nao: '7546' } } as const;
+const DEAL_UF_MELHOR_CONTATO = 'UF_CRM_1771854052492'; // [LP] Melhor forma de contato
+const DEAL_UF_VALOR_DESEJADO = 'UF_CRM_1736172629'; // [P] VALOR DESEJADO PELO CLIENTE
+const DEAL_UF_PF_OU_EMPRESA = 'UF_CRM_1750089776'; // [+] PESSOA FISICA OU EMPRESA?
+const DEAL_PESSOA_FISICA_ID = '4206';
+const DEAL_UF_RANK_LEAD = 'UF_CRM_1767020776832'; // [MKT] RANK LEAD
+const RANK_LEAD_IDS: Record<string, string> = { 'A+': '8798', A: '8800', B: '8802', C: '8804', D: '8806', E: '8808' };
 
 const ESTADO_ENUM_IDS: Record<string, string> = {
   AC: '105', AL: '107', AM: '109', AP: '111', BA: '113', CE: '115', DF: '117',
@@ -65,7 +85,7 @@ const LP_PRECATORIOS_IDS: Record<string, string> = {
   TJMS: '7520', TJES: '7522',
 };
 
-function tribunalToFields(f: OficioFields): Record<string, unknown> {
+function tribunalToFields(f: Pick<OficioFields, 'esfera' | 'tribunal_sigla'>): Record<string, unknown> {
   const sigla = f.tribunal_sigla;
   // Esfera pela leitura da IA; na dúvida, deduz do tribunal (TRF = federal, TJ = estadual).
   let esfera = f.esfera;
@@ -96,6 +116,8 @@ const ATTRIBUTION_KEYS = [
   'utm_network',
   'utm_placement',
   'utm_site_source',
+  'utm_device',
+  'utm_matchtype',
   'campaign_id',
   'adset_id',
   'ad_id',
@@ -217,6 +239,8 @@ function attributionDealFields(attr: Attribution): Record<string, string> {
     ['utm_content', 'UF_CRM_1757529541'],
     ['utm_term', 'UF_CRM_1757529604'],
     ['utm_network', 'UF_CRM_1773700496276'],
+    ['utm_device', 'UF_CRM_1773700190202'],
+    ['utm_matchtype', 'UF_CRM_1773699392897'],
     ['campaign_id', 'UF_CRM_1766855908'],
     ['adset_id', 'UF_CRM_1766856604852'],
     ['adset_id', 'UF_CRM_1773749927195'], // utm_adgroup_id (conjunto = grupo de anúncios)
@@ -247,6 +271,8 @@ function attributionText(attr: Attribution): string {
   if (attr.utm_network) lines.push(`Network: ${attr.utm_network}`);
   if (attr.utm_placement) lines.push(`Placement: ${attr.utm_placement}`);
   if (attr.utm_site_source) lines.push(`Site source: ${attr.utm_site_source}`);
+  if (attr.utm_device) lines.push(`Dispositivo: ${attr.utm_device}`);
+  if (attr.utm_matchtype) lines.push(`Tipo de correspondência: ${attr.utm_matchtype}`);
   if (attr.landing_page) lines.push(`Landing page: ${attr.landing_page}`);
   if (attr.referrer) lines.push(`Referrer: ${attr.referrer}`);
   return lines.length ? `\n\nOrigem do tráfego:\n${lines.map((l) => `- ${l}`).join('\n')}` : '';
@@ -260,6 +286,11 @@ export type LeadInput = {
   stage?: string;
   resultado?: string;
   attribution?: Attribution;
+  // Rota do teste A/B por onde o lead entrou (vai para título, origem e comentário do card).
+  variante?: Variante;
+  // Só nos resultados finais: alimentam a triagem por IA que completa o card.
+  conversa?: ConversaMsg[];
+  oficio?: OficioSnapshot | null;
 };
 
 const RESULTADOS_COM_AVISO: Record<string, string> = {
@@ -275,19 +306,23 @@ const estadosEnviados = new Map<string, string>();
  * quando nome e celular já são conhecidos; antes disso nada é gravado (o frontend
  * reenvia o lead acumulado a cada etapa, então nenhum dado se perde).
  */
-export function registrarLead(input: LeadInput): Promise<{ registrado: boolean }> {
+// `criado` só é true na chamada que efetivamente criou o Negócio: é o gatilho do AIChatLead (Meta),
+// cujo id (ai_chat_lead_id / event_id) vem do `dealId`.
+export function registrarLead(input: LeadInput): Promise<{ registrado: boolean; criado: boolean; dealId?: number }> {
   return withSessionLock(input.sessionId, async () => {
     // Sem Negócio em cache e sem nome+celular nem resultado a avisar, não há o que criar
     // nem atualizar: evita uma consulta ao Bitrix à toa (ex.: etapa 'lead_nome').
     const temContato = Boolean(input.nome && input.celular);
     const temAviso = Boolean(input.resultado && RESULTADOS_COM_AVISO[input.resultado]);
-    if (!dealCache.has(input.sessionId) && !temContato && !temAviso) return { registrado: false };
+    if (!dealCache.has(input.sessionId) && !temContato && !temAviso) return { registrado: false, criado: false };
 
     let deal = await findDeal(input.sessionId);
+    let criado = false;
 
     if (!deal) {
-      if (!input.nome || !input.celular) return { registrado: false };
+      if (!input.nome || !input.celular) return { registrado: false, criado: false };
       deal = await criarNegocio({ ...input, nome: input.nome, celular: input.celular });
+      criado = true;
       if (input.estado) estadosEnviados.set(input.sessionId, input.estado);
     } else {
       await atualizarNegocio(deal, input);
@@ -308,42 +343,220 @@ export function registrarLead(input: LeadInput): Promise<{ registrado: boolean }
         console.error('[bitrix] falha ao registrar aviso de resultado:', (error as Error).message);
       });
     }
-    return { registrado: true };
+    return { registrado: true, criado, dealId: deal.dealId };
   });
+}
+
+const RANK_LEAD_ROTULO: Record<string, string> = {
+  'A+': 'A+ (lead prioritário)',
+  A: 'A (lead quente)',
+  B: 'B (lead qualificado)',
+  C: 'C (lead em qualificação)',
+  D: 'D (lead básico)',
+  E: 'E (lead frio)',
+};
+const INTENCAO_ROTULO: Record<string, string> = {
+  quer_vender_agora: 'quer vender agora',
+  avaliando: 'avaliando a cessão',
+  so_duvidas: 'só tirando dúvidas',
+  sem_oficio: 'ainda sem o ofício',
+  indefinida: 'não identificada',
+};
+
+const triagensFeitas = new Set<string>();
+
+const campoVazio = (deal: Record<string, unknown> | null, campo: string) => {
+  const v = deal?.[campo];
+  return v == null || v === '' || v === '0' || (Array.isArray(v) && v.length === 0);
+};
+
+function textoTriagem(t: Triagem): string {
+  const lista = (titulo: string, itens: string[]) => (itens.length ? `\n${titulo}:\n${itens.map((i) => `- ${i}`).join('\n')}` : '');
+  return [
+    '\n\nTriagem por IA (conversa do cliente x leitura do ofício; conferir no documento):',
+    `Resumo: ${t.resumo || 'sem resumo'}`,
+    `Rank: ${RANK_LEAD_ROTULO[t.rank_lead]} | Intenção: ${INTENCAO_ROTULO[t.intencao]} | Urgência: ${t.urgencia} | Confiança da triagem: ${t.confianca}`,
+    `Valor desejado pelo cliente: ${t.valor_desejado_cliente}`,
+    lista('Dúvidas do cliente', t.duvidas_cliente),
+    lista('Objeções', t.objecoes),
+    lista(
+      'Divergências (cliente x ofício)',
+      t.divergencias.map((d) => `${d.campo}: cliente disse "${d.cliente_disse}"; ofício "${d.ia_capturou}"; adotado "${d.valor_adotado}" (${d.motivo})`)
+    ),
+    lista('Campos sem informação', t.campos_sem_informacao.map((c) => `${c.campo}: ${c.motivo}`)),
+    t.observacoes_consultor ? `\nOrientação ao consultor: ${t.observacoes_consultor}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * Triagem por IA do que o cliente disse no chat e do que a leitura do ofício capturou, e
+ * preenchimento dos campos restantes do card. Roda em resultados finais (ofício confirmado,
+ * clique no WhatsApp, pedido de revisão), uma vez por sessão e resultado. A chamada à IA fica
+ * fora do lock da sessão para não segurar outras gravações; só as escritas no Bitrix entram nele.
+ */
+export async function triarEPreencherCard(input: LeadInput & { resultado: string }): Promise<void> {
+  const chave = `${input.sessionId}:${input.resultado}`;
+  if (triagensFeitas.has(chave)) return;
+  triagensFeitas.add(chave);
+  try {
+    const deal = await findDeal(input.sessionId);
+    if (!deal) return;
+    const atual = await bitrixCall<Record<string, any>>('crm.deal.get', { id: deal.dealId });
+    const attr = input.attribution ?? {};
+    const nome = String(atual?.[DEAL_UF_NOME_CLIENTE] || input.nome || '').trim();
+    const celular = String(atual?.[DEAL_UF_TELEFONE] || input.celular || '').replace(/\D/g, '');
+    const estado = String(atual?.[DEAL_UF_MKT_ESTADO] || input.estado || '').trim() || null;
+    if (!nome) return;
+
+    const triagem = await triarLead({
+      nome,
+      estadoInformado: estado,
+      resultado: input.resultado,
+      conversa: input.conversa ?? [],
+      oficio: input.oficio ?? null,
+      origem: { source: attr.utm_source, medium: attr.utm_medium, campaign: attr.utm_campaign, landing: attr.landing_path },
+    });
+    if (!triagem) {
+      triagensFeitas.delete(chave); // permite nova tentativa no próximo resultado final
+      return;
+    }
+
+    await withSessionLock(input.sessionId, async () => {
+      const campos: Record<string, unknown> = {
+        [DEAL_UF_NOME_CLIENTE]: triagem.nome_completo,
+        [DEAL_UF_VALOR_DESEJADO]: triagem.valor_desejado_cliente,
+        [DEAL_UF_MELHOR_CONTATO]: triagem.melhor_contato,
+        [DEAL_UF_AUTORIZA_WA]: triagem.autoriza_whatsapp ? DEAL_AUTORIZA_WA_SIM_ID : DEAL_AUTORIZA_WA_NAO_ID,
+        [DEAL_UF_TEM_DOCUMENTOS]: triagem.tem_oficio ? SIM_NAO_IDS.documentos.sim : SIM_NAO_IDS.documentos.nao,
+        [DEAL_UF_TEM_PROCESSO]: triagem.tem_numero_processo ? SIM_NAO_IDS.processo.sim : SIM_NAO_IDS.processo.nao,
+        [DEAL_UF_RANK_LEAD]: RANK_LEAD_IDS[triagem.rank_lead],
+        COMMENTS: `${comentarioBase({ sessionId: input.sessionId, celular: celular ? formatCelularBr(celular) : '', estado: triagem.uf_processo ?? estado ?? undefined, attr, variante: input.variante })}${textoTriagem(triagem)}`,
+      };
+      if (triagem.pessoa === 'pessoa_fisica') campos[DEAL_UF_PF_OU_EMPRESA] = DEAL_PESSOA_FISICA_ID;
+      if (triagem.valor_bruto_oficio) {
+        campos.OPPORTUNITY = triagem.valor_bruto_oficio;
+        campos.CURRENCY_ID = 'BRL';
+      }
+      Object.assign(campos, estadoToFields(triagem.uf_processo ?? undefined));
+      // Dados do processo gravados a partir do ofício (servidor) não são sobrescritos pela triagem.
+      for (const [k, v] of Object.entries(tribunalToFields({ esfera: triagem.esfera, tribunal_sigla: triagem.tribunal_sigla as any }))) {
+        if (campoVazio(atual, k)) campos[k] = v;
+      }
+      if (campoVazio(atual, DEAL_UF_NUMERO_PROCESSO) && input.oficio?.processo) {
+        campos[DEAL_UF_NUMERO_PROCESSO] = sanitizeText(input.oficio.processo, 80);
+      }
+      await bitrixCall('crm.deal.update', { id: deal.dealId, fields: campos });
+
+      if (deal.contactId) {
+        await bitrixCall('crm.contact.update', { id: deal.contactId, fields: splitNome(triagem.nome_completo) }).catch((error) =>
+          console.error('[bitrix] falha ao atualizar nome do contato:', (error as Error).message)
+        );
+      }
+
+      const resumo = [
+        `[LP] Card completado pela triagem de IA (resultado: ${input.resultado}).`,
+        `Rank: ${RANK_LEAD_ROTULO[triagem.rank_lead]} | Intenção: ${INTENCAO_ROTULO[triagem.intencao]}.`,
+        triagem.divergencias.length ? `${triagem.divergencias.length} divergência(s) entre o cliente e o ofício: veja o campo Comentário do negócio.` : 'Sem divergências entre o cliente e o ofício.',
+        triagem.campos_sem_informacao.length ? `${triagem.campos_sem_informacao.length} campo(s) sem informação, listados no Comentário.` : 'Todos os campos disponíveis foram preenchidos.',
+      ].join('\n');
+      await bitrixCall('crm.timeline.comment.add', {
+        fields: { ENTITY_ID: deal.dealId, ENTITY_TYPE: 'deal', COMMENT: resumo },
+      }).catch((error) => console.error('[bitrix] falha ao registrar a triagem na timeline:', (error as Error).message));
+    });
+  } catch (error) {
+    triagensFeitas.delete(chave);
+    console.error('[bitrix] falha na triagem do card:', (error as Error).message);
+  }
+}
+
+// Nome completo -> NAME (primeiro nome) + LAST_NAME (restante), como o CRM espera.
+function splitNome(nome: string): { NAME: string; LAST_NAME?: string } {
+  const partes = nome.trim().split(/\s+/);
+  const primeiro = partes.shift() || nome;
+  return partes.length ? { NAME: primeiro, LAST_NAME: partes.join(' ') } : { NAME: primeiro };
+}
+
+function formatCelularBr(digits: string): string {
+  if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return digits;
+}
+
+// Origem do lead pelo rastreio de mídia: Meta (Facebook/Instagram) quando há sinal dele; sem
+// campanha, o lead veio direto pela IA do site.
+function origemLeadId(attr: Attribution): string {
+  const sinais = [attr.utm_source, attr.utm_site_source, attr.utm_network, attr.referrer].join(' ').toLowerCase();
+  if (/instagram|\big\b|ig_/.test(sinais)) return DEAL_DE_ONDE_VEIO_IDS.instagram;
+  if (/facebook|\bfb\b|meta/.test(sinais) || attr.fbclid) return DEAL_DE_ONDE_VEIO_IDS.facebook;
+  if (attr.gclid || attr.utm_source) return DEAL_DE_ONDE_VEIO_IDS.outros;
+  return DEAL_DE_ONDE_VEIO_IDS.ia;
+}
+
+function trafegoPagoId(attr: Attribution): string {
+  const pago =
+    Boolean(attr.gclid || attr.fbclid || attr.campaign_id || attr.adset_id || attr.ad_id) ||
+    /cpc|ppc|paid|display|social/i.test(attr.utm_medium ?? '');
+  return pago ? DEAL_TRAFEGO_PAGO_ID : DEAL_TRAFEGO_ORGANICO_ID;
+}
+
+// Campos que já são conhecidos assim que o card nasce (contato + origem), sem depender de IA.
+function camposDoContato(celular: string, attr: Attribution): Record<string, unknown> {
+  return {
+    CURRENCY_ID: 'BRL',
+    [DEAL_UF_TELEFONE]: formatCelularBr(celular),
+    [DEAL_UF_AUTORIZA_WA]: DEAL_AUTORIZA_WA_SIM_ID,
+    [DEAL_UF_MELHOR_CONTATO]: 'WhatsApp',
+    [DEAL_UF_DE_ONDE_VEIO]: origemLeadId(attr),
+    [DEAL_UF_TIPO_TRAFEGO]: trafegoPagoId(attr),
+    [DEAL_UF_TEM_DOCUMENTOS]: SIM_NAO_IDS.documentos.nao,
+    [DEAL_UF_TEM_PROCESSO]: SIM_NAO_IDS.processo.nao,
+  };
+}
+
+function comentarioBase(p: { sessionId: string; celular: string; estado?: string; attr: Attribution; variante?: Variante }): string {
+  return `Lead captado pela LP com chatbot.${p.variante ? `\nVariante do teste A/B: ${VARIANTE_ROTULO[p.variante]}` : ''}\nProtocolo: ${protocoloFromSession(p.sessionId)}\nTelefone / WhatsApp: ${p.celular}${
+    p.estado ? `\nEstado do processo: ${p.estado}` : ''
+  }${attributionText(p.attr)}`;
+}
+
+function origemDescricao(variante?: Variante): string {
+  return variante && variante !== 'lp' ? `LP Precatórios (${VARIANTE_ROTULO[variante]})` : 'LP Precatórios (chatbot)';
 }
 
 async function criarNegocio(input: LeadInput & { nome: string; celular: string }): Promise<DealRef> {
   const nome = sanitizeText(input.nome, 200);
   const attr = input.attribution ?? {};
-  const protocolo = protocoloFromSession(input.sessionId);
 
   const contactId = Number(
     await bitrixCall('crm.contact.add', {
       fields: {
-        NAME: nome,
+        ...splitNome(nome),
         PHONE: [{ VALUE: input.celular, VALUE_TYPE: 'WORK' }],
         SOURCE_ID: 'WEB',
+        SOURCE_DESCRIPTION: origemDescricao(input.variante),
         ...attributionFields(attr),
       },
     })
   );
 
   const fields: Record<string, unknown> = {
-    TITLE: `LP da Marlene - ${nome}`,
+    // O sufixo da variante permite filtrar o teste A/B pelo título no Bitrix.
+    TITLE: `LP da Marlene - ${nome}${input.variante && input.variante !== 'lp' ? ` [${input.variante.toUpperCase()}]` : ''}`,
     CONTACT_ID: contactId,
     CATEGORY_ID: DEAL_CATEGORY_ID,
     STAGE_ID: DEAL_STAGE_ID,
     ASSIGNED_BY_ID: DEAL_ASSIGNED_BY_ID,
     SOURCE_ID: 'WEB',
-    SOURCE_DESCRIPTION: 'LP Precatórios (chatbot)',
+    SOURCE_DESCRIPTION: origemDescricao(input.variante),
     ORIGINATOR_ID,
     ORIGIN_ID: input.sessionId,
-    COMMENTS: `Lead captado pela LP com chatbot.\nProtocolo: ${protocolo}\nTelefone / WhatsApp: ${input.celular}${
-      input.estado ? `\nEstado do processo: ${input.estado}` : ''
-    }${attributionText(attr)}`,
+    COMMENTS: comentarioBase({ sessionId: input.sessionId, celular: input.celular, estado: input.estado, attr, variante: input.variante }),
     [DEAL_UF_NOME_CLIENTE]: nome,
     [DEAL_UF_MKT_ORIGEM_LEAD]: DEAL_ORIGEM_LEAD_LPIA_ID,
     [DEAL_UF_MKT_FUNIL_ORIGEM]: DEAL_FUNIL_PREMIUM_OFFICE_ID,
+    ...camposDoContato(input.celular, attr),
     ...attributionFields(attr),
     ...attributionDealFields(attr),
   };
@@ -384,6 +597,7 @@ async function atualizarNegocio(deal: DealRef, input: LeadInput) {
       id: deal.contactId,
     });
     const atuais = contact?.PHONE ?? [];
+    await bitrixCall('crm.deal.update', { id: deal.dealId, fields: { [DEAL_UF_TELEFONE]: formatCelularBr(input.celular) } });
     if (!atuais.some((p) => p.VALUE.replace(/\D/g, '') === input.celular)) {
       await bitrixCall('crm.contact.update', {
         id: deal.contactId,
@@ -423,6 +637,13 @@ export function registrarOficio(input: OficioInput): Promise<{ registrado: boole
       dealFields[DEAL_UF_CPF_BOT] = input.cpf;
     }
     if (f.processo) dealFields[DEAL_UF_NUMERO_PROCESSO] = sanitizeText(f.processo, 80);
+    dealFields[DEAL_UF_TEM_DOCUMENTOS] = SIM_NAO_IDS.documentos.sim;
+    if (f.processo) dealFields[DEAL_UF_TEM_PROCESSO] = SIM_NAO_IDS.processo.sim;
+    // Valor do negócio = valor bruto requisitado no ofício (a proposta é sobre o líquido; ver Comentário).
+    if (typeof f.valor === 'number') {
+      dealFields.OPPORTUNITY = f.valor;
+      dealFields.CURRENCY_ID = 'BRL';
+    }
     Object.assign(dealFields, tribunalToFields(f));
     if (Object.keys(dealFields).length) {
       await bitrixCall('crm.deal.update', { id: deal.dealId, fields: dealFields });
@@ -475,4 +696,53 @@ export function registrarOficio(input: OficioInput): Promise<{ registrado: boole
     });
     return { registrado: true, dealId: deal.dealId };
   });
+}
+
+/** Negócio da sessão, se já criado. */
+export async function negocioDaSessao(sessionId: string): Promise<number | null> {
+  return (await findDeal(sessionId))?.dealId ?? null;
+}
+
+export async function comentarNoNegocio(dealId: number, comment: string): Promise<void> {
+  await bitrixCall('crm.timeline.comment.add', { fields: { ENTITY_ID: dealId, ENTITY_TYPE: 'deal', COMMENT: comment } });
+}
+
+/**
+ * Grava o CPF informado pelo cliente (formulário ou chat) no Negócio e no Contato da sessão,
+ * sem sobrescrever um CPF já lido do ofício. Sem Negócio criado ainda, não grava.
+ */
+export function registrarCpf(input: { sessionId: string; cpf: string }): Promise<{ dealId: number | null }> {
+  return withSessionLock(input.sessionId, async () => {
+    const deal = await findDeal(input.sessionId);
+    if (!deal) return { dealId: null };
+    const atual = await bitrixCall<Record<string, any>>('crm.deal.get', { id: deal.dealId });
+    if (campoVazio(atual, DEAL_UF_CPF)) {
+      await bitrixCall('crm.deal.update', {
+        id: deal.dealId,
+        fields: { [DEAL_UF_CPF]: input.cpf, [DEAL_UF_CPF_CLIENTE]: input.cpf, [DEAL_UF_CPF_BOT]: input.cpf },
+      });
+      if (deal.contactId) {
+        await bitrixCall('crm.contact.update', {
+          id: deal.contactId,
+          fields: { [CONTACT_UF_CPF]: [input.cpf], [CONTACT_UF_CPF_CNPJ]: input.cpf, [CONTACT_UF_CPF_ALT]: input.cpf },
+        }).catch((error) => console.error('[bitrix] falha ao gravar CPF no contato:', (error as Error).message));
+      }
+    }
+    return { dealId: deal.dealId };
+  });
+}
+
+/** Respostas declaradas pelo cliente (formulário ou secretária digital) como comentário do card. */
+export async function registrarDeclaracoes(input: {
+  sessionId: string;
+  titulo: string;
+  itens: [string, string | null | undefined][];
+}): Promise<void> {
+  const dealId = await negocioDaSessao(input.sessionId);
+  if (!dealId) return;
+  const linhas = input.itens
+    .filter(([, v]) => v != null && String(v).trim() !== '')
+    .map(([k, v]) => `${k}: ${sanitizeText(String(v), 300)}`);
+  if (!linhas.length) return;
+  await comentarNoNegocio(dealId, `[LP] ${input.titulo}\n${linhas.join('\n')}`);
 }

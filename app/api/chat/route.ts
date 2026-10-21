@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getClientIp, isValidClientSessionId, rateLimit } from '@/lib/server';
-import { WA_NUMBER } from '@/lib/whatsapp';
+import { getClientIp, isValidClientSessionId, rateLimit, redactPii } from '@/lib/server';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -30,26 +29,6 @@ Estilo:
 - Respostas curtas: no máximo 3 frases ou 3 itens curtos. Sem emojis, sem markdown pesado.`;
 
 type ChatMsg = { role: 'user' | 'assistant'; content: string };
-
-// Remove CPF/telefone digitados por engano antes de enviar ao LLM e gravar no histórico.
-// Aceita espaços, pontos e hífens entre os grupos (comum em quem digita no celular).
-// O WhatsApp da própria empresa nunca é omitido: é o principal CTA das respostas.
-const OMITIDO = '[dado omitido]';
-// Limites: não pode estar colado a outro dígito (nem a "dígito + separador"), para não
-// cortar pedaços de números de processo (ex.: 0001234-56.2020.4.01.3400).
-const CPF_RE = /(?<!\d|\d[.\-\/])\d{3}[\s.]?\d{3}[\s.]?\d{3}[\s.\-]?\d{2}(?!\d|[.\-\/]\d)/g;
-const PHONE_RE =
-  /(?<!\d|\d[.\-\/])(?:\+?55[\s.\-]?)?(?:\(?\d{2}\)?[\s.\-]?9?\d{4}|9\d{4})[\s.\-]?\d{4}(?!\d|[.\-\/]\d)/g;
-
-function isCompanyNumber(match: string) {
-  const digits = match.replace(/\D/g, '');
-  return digits.length >= 9 && WA_NUMBER.endsWith(digits);
-}
-
-function redactPii(text: string) {
-  const replacer = (m: string) => (isCompanyNumber(m) ? m : OMITIDO);
-  return text.replace(CPF_RE, replacer).replace(PHONE_RE, replacer);
-}
 
 function bad(error: string, status = 400) {
   return NextResponse.json({ error }, { status });

@@ -19,6 +19,8 @@ export type Attribution = {
   utm_network?: string;
   utm_placement?: string;
   utm_site_source?: string;
+  utm_device?: string;
+  utm_matchtype?: string;
   campaign_id?: string;
   adset_id?: string;
   ad_id?: string;
@@ -43,6 +45,8 @@ const TEXT_PARAMS = [
   'utm_network',
   'utm_placement',
   'utm_site_source',
+  'utm_device',
+  'utm_matchtype',
   'gclid',
   'fbclid',
 ] as const;

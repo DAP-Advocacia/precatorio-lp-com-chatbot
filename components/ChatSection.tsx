@@ -7,6 +7,7 @@ import { captureAttribution, getAttribution } from '@/lib/attribution';
 import { track } from '@/lib/track';
 import { whatsappLink, protocoloFromSession } from '@/lib/whatsapp';
 import { OPEN_CHAT_EVENT } from '@/lib/chat-events';
+import { apiPath, asset } from '@/lib/site';
 
 // ---------------------------------------------------------------------------
 // Message model
@@ -39,6 +40,8 @@ interface LeadData {
 
 interface Extracted {
   tipo: 'precatorio' | 'rpv' | 'desconhecido';
+  esfera: 'federal' | 'estadual' | 'municipal' | 'desconhecida';
+  tribunalSigla: string | null;
   credor: string | null;
   cpf: string | null;
   processo: string | null;
@@ -605,6 +608,8 @@ export default class ChatSection extends React.Component<{}, State> {
   resetSeq = 0;
   chatSeq = 0;
   uploadAbort: AbortController | null = null;
+  // Última leitura do ofício (CPF já mascarado): vai junto dos resultados finais para a triagem por IA.
+  oficioLido: Extracted | null = null;
   // Rolagem: se o usuário estava na base antes de o teclado/viewport mudar.
   stickToBottom = true;
   // Tela cheia mobile: trava de scroll do body e teclado do iOS (visualViewport).
@@ -950,12 +955,15 @@ export default class ChatSection extends React.Component<{}, State> {
 
     const clientSessionId = this.sid();
     if (!clientSessionId) return Promise.resolve(false);
-    const body = JSON.stringify({ clientSessionId, lead: payloadLead, stage, resultado, attribution: getAttribution() });
+    // Nos resultados finais segue também a conversa (sem CPF/telefone) e a leitura do ofício,
+    // para o servidor fazer a triagem por IA que completa o card.
+    const triagem = resultadoFinal ? { conversa: this.conversaParaTriagem(), oficio: this.oficioLido } : {};
+    const body = JSON.stringify({ clientSessionId, lead: payloadLead, stage, resultado, attribution: getAttribution(), ...triagem });
     const resetSeq = this.resetSeq;
 
     const attempt = async (n: number): Promise<boolean> => {
       try {
-        const res = await fetch('/api/lead', {
+        const res = await fetch(apiPath('/api/lead'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body,
@@ -963,6 +971,10 @@ export default class ChatSection extends React.Component<{}, State> {
         });
         if (res.ok) {
           if (hasContact && resetSeq === this.resetSeq) this.leadSaved = true;
+          // Negócio recém-criado no Bitrix: ai_chat_lead com o id do servidor (= event_id da CAPI).
+          const data = await res.json().catch(() => null);
+          const aiChatLeadId = data?.aiChatLead?.id;
+          if (typeof aiChatLeadId === 'string') track('ai_chat_lead', { ai_chat_lead_id: aiChatLeadId, variante: 'lp' });
           return true;
         }
         let info: any = null;
@@ -985,6 +997,14 @@ export default class ChatSection extends React.Component<{}, State> {
     };
     return attempt(0);
   };
+
+  // Últimas mensagens de texto da conversa, com CPF/telefone removidos. Diferente do histórico da
+  // /api/chat, inclui as respostas do fluxo de captação (nome, estado): a triagem precisa delas.
+  conversaParaTriagem = () =>
+    this.state.messages
+      .filter((m) => m.kind === 'text' && !m.status && typeof m.text === 'string')
+      .map((m) => ({ role: m.from === 'ai' ? 'assistant' : 'user', text: redactPii(m.text as string).slice(0, 700) }))
+      .slice(-40);
 
   hasLead = () => this.leadPersisted || !!(this.state.leadData.nome || this.state.leadData.celular);
 
@@ -1209,7 +1229,7 @@ export default class ChatSection extends React.Component<{}, State> {
       const form = new FormData();
       form.append('file', file);
       form.append('clientSessionId', this.sid());
-      const res = await fetch('/api/oficio', { method: 'POST', body: form, signal: controller.signal });
+      const res = await fetch(apiPath('/api/oficio'), { method: 'POST', body: form, signal: controller.signal });
       status = res.status;
       try {
         data = await res.json();
@@ -1252,6 +1272,7 @@ export default class ChatSection extends React.Component<{}, State> {
       return;
     }
 
+    this.oficioLido = x;
     track('oficio_extraido', { tipo: x.tipo || 'desconhecido', campos: items.length });
     this.setState((s) => ({
       messages: [
@@ -1338,6 +1359,7 @@ export default class ChatSection extends React.Component<{}, State> {
     this.resetSeq++;
     this.leadSaved = false;
     this.fixingCelular = false;
+    this.oficioLido = null;
     this.uploadAbort?.abort();
     this.uploadAbort = null;
     this.setState({
@@ -1401,7 +1423,7 @@ export default class ChatSection extends React.Component<{}, State> {
 
     let reply = '';
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(apiPath('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: historyForApi, clientSessionId: this.sid() }),
@@ -2042,7 +2064,7 @@ export default class ChatSection extends React.Component<{}, State> {
               >
                 {/* Marca d'água só a partir de 640px: no celular o arquivo nem é baixado. */}
                 <NextImage
-                  src="/chat-watermark.png"
+                  src={asset('/chat-watermark.png')}
                   alt=""
                   aria-hidden="true"
                   width={500}
@@ -2068,7 +2090,7 @@ export default class ChatSection extends React.Component<{}, State> {
           {/* RIGHT: promotional banner & how-it-works panel (sem valores de exemplo) — só desktop (lg) */}
           <div className="hidden min-w-[280px] max-w-[360px] flex-[1.2_1_280px] self-stretch lg:flex flex-col items-center justify-start gap-6">
             <NextImage
-              src="/side_banner.png"
+              src={asset('/side_banner.png')}
               alt="Antecipe hoje seu precatório — receba sua proposta 100% online e segura"
               width={563}
               height={756}

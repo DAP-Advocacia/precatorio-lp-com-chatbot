@@ -11,8 +11,10 @@ const montserrat = Montserrat({
   variable: '--font-montserrat',
 });
 
-// GTM opcional: só carrega quando NEXT_PUBLIC_GTM_ID estiver definido no ambiente.
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID?.trim() || '';
+// Mesmo container GTM do site da Premium Office. NEXT_PUBLIC_GTM_ID sobrescreve; em `npm run dev`
+// só carrega se a env estiver definida, para o tráfego local não sujar o Pixel/GA.
+const GTM_PADRAO = process.env.NODE_ENV === 'development' ? '' : 'GTM-TXLRT64T';
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID?.trim() || GTM_PADRAO;
 const GTM_ID_SAFE = /^GTM-[A-Z0-9]+$/i.test(GTM_ID) ? GTM_ID : '';
 
 export const viewport: Viewport = {
@@ -54,7 +56,7 @@ export const metadata: Metadata = {
   category: 'finance',
   // Evita que o iOS transforme o número de WhatsApp/processo em link de telefone fora do nosso controle.
   formatDetection: { telephone: false, email: false, address: false },
-  alternates: { canonical: '/', languages: { 'pt-BR': '/' } },
+  alternates: { canonical: SITE_URL, languages: { 'pt-BR': SITE_URL } },
   openGraph: {
     type: 'website',
     locale: 'pt_BR',

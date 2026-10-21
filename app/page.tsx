@@ -3,7 +3,6 @@ import ChatSection from '@/components/ChatSection';
 import ComoFunciona from '@/components/ComoFunciona';
 import SocialProof from '@/components/SocialProof';
 import Faq from '@/components/Faq';
-import Artigos from '@/components/Artigos';
 import CtaFinal from '@/components/CtaFinal';
 import Footer from '@/components/Footer';
 import { FAQ_DATA } from '@/lib/data';
@@ -30,7 +29,6 @@ export default function Home() {
       <ComoFunciona />
       <SocialProof />
       <Faq />
-      <Artigos />
       <CtaFinal />
       <Footer />
     </div>

@@ -5,6 +5,7 @@ import { useRef, type MouseEvent } from 'react';
 import { openChat } from '@/lib/chat-events';
 import { useBeams } from '@/lib/useBeams';
 import { track } from '@/lib/track';
+import { asset } from '@/lib/site';
 
 const TRUST_MARKERS = ['Site seguro', 'Seus dados protegidos', 'Segurança jurídica em cada etapa'];
 
@@ -37,7 +38,7 @@ export default function Hero() {
       <div className="relative mx-auto flex max-w-[1280px] flex-col items-center justify-center pt-0 sm:pt-8">
         <div className="mx-auto flex w-full max-w-[800px] flex-col items-center text-center">
           <Image
-            src="/logo-white.png"
+            src={asset('/logo-white.png')}
             alt="Premium Office Precatórios"
             width={711}
             height={351}

@@ -1,7 +1,7 @@
 import { NextResponse, after } from 'next/server';
 import { describeError, getClientIp, isValidClientSessionId, rateLimit } from '@/lib/server';
 import { registrarOficio } from '@/lib/bitrix';
-import { enriquecerNegocio } from '@/lib/infosimples';
+import { enriquecerCard } from '@/lib/enriquecimento';
 import {
   detectMime,
   estimateCostUsd,
@@ -153,9 +153,9 @@ export async function POST(request: Request) {
         file: upload,
       });
       if (!registrado) console.warn('[api/oficio] ofício não anexado: nenhum Negócio para a sessão no Bitrix.');
-      // Consulta Infosimples (andamento + precatórios) com o CPF do ofício; o worker
-      // posta o resultado no card. Uma vez por sessão (cada chamada gasta crédito).
-      else if (cpfValido && dealId) await enriquecerNegocio({ sessionId: clientSessionId, cpf: cpfDigits, dealId });
+      // Lemit (cadastro) + Infosimples (andamento e precatórios) com o CPF do ofício, postados
+      // no card. Uma vez por sessão (cada chamada gasta crédito).
+      else if (cpfValido && dealId) await enriquecerCard({ sessionId: clientSessionId, cpf: cpfDigits, dealId });
     } catch (error) {
       console.error('[api/oficio] falha ao enviar o ofício ao Bitrix:', describeError(error));
     }
@@ -165,6 +165,8 @@ export async function POST(request: Request) {
     ok: true,
     extracted: {
       tipo: f.tipo,
+      esfera: f.esfera,
+      tribunalSigla: f.tribunal_sigla,
       credor: f.credor,
       cpf: cpfValido ? maskCpf(cpfDigits) : null,
       processo: f.processo,

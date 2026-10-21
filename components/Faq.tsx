@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import { FAQ_DATA } from '@/lib/data';
+import { asset } from '@/lib/site';
 
 export default function Faq() {
   return (
@@ -42,7 +43,7 @@ export default function Faq() {
               o navegador não baixa o arquivo; sizes 0px garante a menor variante se baixar. */}
           <div className="hidden flex-[1_1_50%] lg:block">
             <Image
-              src="/criativo-premium-office-celular.png"
+              src={asset('/criativo-premium-office-celular.png')}
               alt="Premium Office Precatórios"
               width={1080}
               height={1350}

@@ -22,7 +22,7 @@ Open http://localhost:3000.
 
 ```
 app/
-  layout.tsx        Font + metadata + GTM opcional
+  layout.tsx        Font + metadata + GTM (GTM-TXLRT64T)
   globals.css        Tailwind directives + reset enxuto + botão do chat (.po-btn)
   page.tsx           Assembles the page from the components below
 components/
@@ -109,6 +109,10 @@ Bitrix (`ORIGINATOR_ID=lp-chatbot`, `ORIGIN_ID=<id da sessão>`).
 | `BITRIX_DEAL_STAGE_ID` | não | Etapa inicial (padrão `C534:NEW`) |
 | `BITRIX_ASSIGNED_BY_ID` | não | Responsável do Negócio (padrão `178968`) |
 | `NEXT_PUBLIC_GTM_ID` | não | Google Tag Manager |
+| `LEMIT_API_URL` | não | Consulta Lemit por CPF (`https://api.lemit.com.br/api/v1/consulta/pessoa/{cpf}`). Sem ela, o enriquecimento Lemit fica desligado |
+| `LEMIT_API_TOKEN` | não | Token da conta Lemit (somente servidor) |
+| `LEMIT_AUTH_HEADER` | não | Cabeçalho do token (padrão `Authorization`, enviado como `Bearer`) |
+| `AGENTE_MODEL` | não | Modelo da secretária digital em `/chat` (padrão `gpt-4o-mini`) |
 
 Limitações conhecidas: sem fila de retry (falha no Bitrix é devolvida ao frontend, que tenta
 mais uma vez, mas o envio do ofício em segundo plano não é reprocessado) e a proteção contra
