@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/site';
 
-// As variantes do teste A/B (/chat e /antecipe) ficam fora: são noindex e canônicas para a home.
+// A variante B (/antecipar) fica fora: é noindex e duplica o conteúdo da home.
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {

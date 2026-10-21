@@ -10,7 +10,7 @@ import { apiPath, asset } from '@/lib/site';
 import { track } from '@/lib/track';
 import { protocoloFromSession, whatsappLink, WA_DISPLAY } from '@/lib/whatsapp';
 
-// Variante A do teste A/B (/chat): modal de apresentação da secretária digital e
+// Variante A do teste A/B (home, /): modal de apresentação da secretária digital e
 // chat com o agente (/api/agente), que conduz a conversa e registra o lead no Bitrix.
 
 // Foto do avatar enviada pela equipe em public/. Sem o arquivo, o avatar mostra as iniciais.

@@ -1,5 +1,6 @@
 import Hero from '@/components/Hero';
-import ChatSection from '@/components/ChatSection';
+import SecretariaDigital from '@/components/ab/SecretariaDigital';
+import VarianteTracker from '@/components/ab/VarianteTracker';
 import ComoFunciona from '@/components/ComoFunciona';
 import SocialProof from '@/components/SocialProof';
 import Faq from '@/components/Faq';
@@ -17,15 +18,14 @@ const faqJsonLd = {
   })),
 };
 
+// Home = variante A do teste A/B (secretária digital). A variante B (stepper) fica em /antecipar.
 export default function Home() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-mist text-ink font-sans">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <VarianteTracker variante="chat" />
       <Hero />
-      <ChatSection />
+      <SecretariaDigital />
       <ComoFunciona />
       <SocialProof />
       <Faq />

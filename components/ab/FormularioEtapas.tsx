@@ -8,7 +8,7 @@ import { track } from '@/lib/track';
 import { protocoloFromSession, whatsappLink, WA_DISPLAY } from '@/lib/whatsapp';
 import Stepper from '@/components/ab/Stepper';
 
-// Variante B do teste A/B (/antecipe): modal de abertura e formulário em etapas,
+// Variante B do teste A/B (/antecipar): modal de abertura e formulário em etapas,
 // em vidro (glassmorphism). A etapa 1 cria o card (nome, telefone e CPF); o CPF dispara o
 // enriquecimento Lemit/Infosimples no servidor, e as respostas seguintes vão para o card
 // para o consultor cruzar com o ofício e o enriquecimento.
@@ -22,7 +22,8 @@ const TIPOS = ['Federal', 'Estadual', 'Municipal', 'INSS'] as const;
 const NATUREZAS = ['Alimentar', 'Comum'] as const;
 const NAO_SEI = 'Não sei';
 
-const GLASS = 'border border-white/20 bg-white/[0.08] shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-xl';
+// Card escuro em vidro sobre a seção branca: os brilhos de fundo aparecem através dele.
+const GLASS = 'border border-white/20 bg-[rgba(11,27,51,0.88)] shadow-[0_24px_70px_rgba(11,27,51,0.28)] backdrop-blur-xl';
 const INPUT =
   'min-h-[50px] w-full rounded-xl border border-white/20 bg-white/[0.07] px-4 font-sans text-base text-white placeholder:text-[#9AA6BC] outline-none transition-colors focus:border-[#DAA520] focus:bg-white/[0.12]';
 
@@ -318,7 +319,7 @@ export default function FormularioEtapas() {
         id="ia"
         ref={secaoRef}
         data-screen-label="Formulário em etapas"
-        className="relative scroll-mt-4 overflow-hidden bg-navy-deep px-4 py-12 sm:px-8 sm:py-16"
+        className="relative scroll-mt-4 overflow-hidden bg-white px-4 py-12 sm:px-8 sm:py-16"
       >
         {/* Fundo para o efeito de vidro: brilhos suaves nas cores da marca. */}
         <div aria-hidden="true" className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#DAA520]/20 blur-3xl" />
@@ -520,7 +521,7 @@ export default function FormularioEtapas() {
             </>
           )}
         </div>
-        <p className="relative m-0 mt-4 text-center text-[13px] text-[#9AA6BC]">Prefere falar direto? WhatsApp {WA_DISPLAY}</p>
+        <p className="relative m-0 mt-4 text-center text-[13px] text-[#6B7280]">Prefere falar direto? WhatsApp {WA_DISPLAY}</p>
       </section>
     </>
   );

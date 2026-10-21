@@ -14,16 +14,16 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default function AntecipePage() {
+export default function AnteciparPage() {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-navy-deep text-ink font-sans">
+    <div className="min-h-screen overflow-x-hidden bg-white text-ink font-sans">
       <VarianteTracker variante="formulario" />
-      <Hero />
+      <Hero tema="claro" />
       <FormularioEtapas />
-      <ComoFunciona />
+      <ComoFunciona tema="claro" />
       <SocialProof />
       <Faq />
-      <CtaFinal />
+      <CtaFinal tema="claro" />
       <Footer />
     </div>
   );

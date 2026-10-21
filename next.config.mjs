@@ -13,6 +13,13 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  // Rotas antigas do teste A/B: o chat passou para a home e o stepper para /antecipar.
+  async redirects() {
+    return [
+      { source: '/chat', destination: '/', permanent: false },
+      { source: '/antecipe', destination: '/antecipar', permanent: false },
+    ];
+  },
   async headers() {
     return [
       {
