@@ -6,6 +6,7 @@ import { protocoloFromSession } from '@/lib/whatsapp';
 import type { OficioFields } from '@/lib/oficio-extract';
 import { VARIANTE_ROTULO, type Variante } from '@/lib/variante';
 import { triarLead, type ConversaMsg, type OficioSnapshot, type Triagem } from '@/lib/triagem';
+import { parseValorNumerico } from '@/lib/curadoria';
 
 // Pipeline "[LP] PREMIUM OFFICE v2", etapa "LP — Novo Lead" (etapa de sistema; não é a
 // primeira por ordenação, por isso precisa ser explícita). Sobrescrevíveis por env.
@@ -278,6 +279,21 @@ function attributionText(attr: Attribution): string {
   return lines.length ? `\n\nOrigem do tráfego:\n${lines.map((l) => `- ${l}`).join('\n')}` : '';
 }
 
+export type CuradoriaLeadData = {
+  rank?: 'A+' | 'A' | 'B' | 'C' | 'D' | 'E';
+  status?: string;
+  tipo?: string | null;
+  natureza?: string | null;
+  relacaoTitular?: string | null;
+  faseProcesso?: string | null;
+  intencao?: string | null;
+  temOficio?: boolean | null;
+  temProcesso?: boolean | null;
+  valorAproximado?: string | null;
+  parecer?: string | null;
+  orientacoesComercial?: string | null;
+};
+
 export type LeadInput = {
   sessionId: string;
   nome?: string;
@@ -291,6 +307,8 @@ export type LeadInput = {
   // Só nos resultados finais: alimentam a triagem por IA que completa o card.
   conversa?: ConversaMsg[];
   oficio?: OficioSnapshot | null;
+  // Curadoria preliminar da Karen (IA) antes do envio ao Bitrix
+  curadoria?: CuradoriaLeadData;
 };
 
 const RESULTADOS_COM_AVISO: Record<string, string> = {
@@ -563,6 +581,29 @@ async function criarNegocio(input: LeadInput & { nome: string; celular: string }
   const estadoFields = estadoToFields(input.estado);
   Object.assign(fields, estadoFields);
 
+  if (input.curadoria) {
+    const c = input.curadoria;
+    if (c.rank && RANK_LEAD_IDS[c.rank]) {
+      fields[DEAL_UF_RANK_LEAD] = RANK_LEAD_IDS[c.rank];
+    }
+    if (c.valorAproximado) {
+      fields[DEAL_UF_VALOR_DESEJADO] = sanitizeText(c.valorAproximado, 80);
+      const num = parseValorNumerico(c.valorAproximado);
+      if (num && num > 0) {
+        fields.OPPORTUNITY = num;
+      }
+    }
+    if (c.tipo && ['federal', 'estadual', 'municipal'].includes(c.tipo)) {
+      fields[DEAL_UF_TIPO_PRECATORIO] = TIPO_PRECATORIO_IDS[c.tipo as 'federal' | 'estadual' | 'municipal'];
+    }
+    if (c.temOficio != null) {
+      fields[DEAL_UF_TEM_DOCUMENTOS] = c.temOficio ? SIM_NAO_IDS.documentos.sim : SIM_NAO_IDS.documentos.nao;
+    }
+    if (c.temProcesso != null) {
+      fields[DEAL_UF_TEM_PROCESSO] = c.temProcesso ? SIM_NAO_IDS.processo.sim : SIM_NAO_IDS.processo.nao;
+    }
+  }
+
   const dealId = Number(
     await bitrixCall('crm.deal.add', { fields, params: { REGISTER_SONET_EVENT: 'Y' } })
   );
@@ -588,6 +629,34 @@ async function atualizarNegocio(deal: DealRef, input: LeadInput) {
     if (Object.keys(fields).length) {
       await bitrixCall('crm.deal.update', { id: deal.dealId, fields });
       estadosEnviados.set(input.sessionId, input.estado);
+    }
+  }
+
+  // Curadoria atualizada pela IA: preenche rank, valor desejado, documentos e tipo no card
+  if (input.curadoria) {
+    const c = input.curadoria;
+    const curadoriaFields: Record<string, unknown> = {};
+    if (c.rank && RANK_LEAD_IDS[c.rank]) {
+      curadoriaFields[DEAL_UF_RANK_LEAD] = RANK_LEAD_IDS[c.rank];
+    }
+    if (c.valorAproximado) {
+      curadoriaFields[DEAL_UF_VALOR_DESEJADO] = sanitizeText(c.valorAproximado, 80);
+      const num = parseValorNumerico(c.valorAproximado);
+      if (num && num > 0) curadoriaFields.OPPORTUNITY = num;
+    }
+    if (c.tipo && ['federal', 'estadual', 'municipal'].includes(c.tipo)) {
+      curadoriaFields[DEAL_UF_TIPO_PRECATORIO] = TIPO_PRECATORIO_IDS[c.tipo as 'federal' | 'estadual' | 'municipal'];
+    }
+    if (c.temOficio != null) {
+      curadoriaFields[DEAL_UF_TEM_DOCUMENTOS] = c.temOficio ? SIM_NAO_IDS.documentos.sim : SIM_NAO_IDS.documentos.nao;
+    }
+    if (c.temProcesso != null) {
+      curadoriaFields[DEAL_UF_TEM_PROCESSO] = c.temProcesso ? SIM_NAO_IDS.processo.sim : SIM_NAO_IDS.processo.nao;
+    }
+    if (Object.keys(curadoriaFields).length) {
+      await bitrixCall('crm.deal.update', { id: deal.dealId, fields: curadoriaFields }).catch((error) =>
+        console.error('[bitrix] falha ao atualizar campos de curadoria:', (error as Error).message)
+      );
     }
   }
 
@@ -745,4 +814,14 @@ export async function registrarDeclaracoes(input: {
     .map(([k, v]) => `${k}: ${sanitizeText(String(v), 300)}`);
   if (!linhas.length) return;
   await comentarNoNegocio(dealId, `[LP] ${input.titulo}\n${linhas.join('\n')}`);
+}
+
+/** Comentário detalhado da Ficha de Curadoria da IA (Karen) no card do Bitrix */
+export async function registrarCuradoriaComment(input: {
+  sessionId: string;
+  comment: string;
+}): Promise<void> {
+  const dealId = await negocioDaSessao(input.sessionId);
+  if (!dealId) return;
+  await comentarNoNegocio(dealId, input.comment);
 }
