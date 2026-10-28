@@ -209,7 +209,6 @@ const GLASS_SEM_BORDA = GLASS.replace('border border-white/20 ', '');
 function ModalAbertura({ onComecar }: { onComecar: () => void }) {
   const botaoRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    botaoRef.current?.focus();
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onComecar();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -254,7 +253,8 @@ function ModalAbertura({ onComecar }: { onComecar: () => void }) {
           ref={botaoRef}
           type="button"
           onClick={onComecar}
-          className="min-h-[52px] w-full cursor-pointer rounded-full border border-transparent bg-[#F5F2EB] font-sans text-base font-extrabold text-navy-accent shadow-[0_12px_32px_rgba(0,0,0,0.3)] transition-colors duration-250 hover:border-transparent hover:bg-navy hover:text-porcelain sm:w-auto sm:px-8"
+          className="min-h-[52px] w-full cursor-pointer rounded-full border-0 border-none bg-[#F5F2EB] font-sans text-base font-extrabold text-navy-accent shadow-[0_12px_32px_rgba(0,0,0,0.3)] transition-colors duration-250 hover:bg-navy hover:text-porcelain outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ring-0 sm:w-auto sm:px-8"
+          style={{ outline: 'none', border: 'none' }}
         >
           Iniciar triagem →
         </button>
@@ -900,7 +900,8 @@ export default function FormularioEtapas() {
                   onClick={() => {
                     track('whatsapp_click', { origem: 'formulario_concluido', variante: 'formulario' });
                   }}
-                  className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-transparent bg-[#F5F2EB] px-8 font-sans text-base font-extrabold text-navy-accent no-underline shadow-lg transition-colors duration-200 hover:border-transparent hover:bg-navy hover:text-porcelain"
+                  className="inline-flex min-h-[52px] items-center justify-center rounded-full border-0 border-none bg-[#F5F2EB] px-8 font-sans text-base font-extrabold text-navy-accent no-underline shadow-lg transition-colors duration-200 hover:bg-navy hover:text-porcelain outline-none focus:outline-none ring-0"
+                  style={{ outline: 'none', border: 'none' }}
                 >
                   Conversar agora no WhatsApp →
                 </a>
@@ -941,7 +942,8 @@ export default function FormularioEtapas() {
                   type="button"
                   onClick={continuar}
                   disabled={enviando}
-                  className="min-h-[48px] cursor-pointer rounded-full border border-transparent bg-[#F5F2EB] px-7 font-sans text-[15px] font-extrabold text-navy-accent transition-colors duration-200 hover:border-transparent hover:bg-navy hover:text-porcelain disabled:opacity-60 shadow-md"
+                  className="min-h-[48px] cursor-pointer rounded-full border-0 border-none bg-[#F5F2EB] px-7 font-sans text-[15px] font-extrabold text-navy-accent transition-colors duration-200 hover:bg-navy hover:text-porcelain disabled:opacity-60 shadow-md outline-none focus:outline-none focus:ring-0 focus-visible:outline-none ring-0"
+                  style={{ outline: 'none', border: 'none' }}
                 >
                   {enviando
                     ? 'Validando...'
