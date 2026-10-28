@@ -85,7 +85,7 @@ Custom Tailwind colors (see `tailwind.config.ts`) mirror the source palette:
 - `mist` `#E9EBEF`, `cloud` `#EEF0F3` — light section backgrounds
 - `sky` `#8FB4EA` — accent blue used on dark backgrounds
 
-Font: Montserrat (400/500/600/700/800), loaded via `next/font/google`.
+Font: Inter (400/500/600/700/800), loaded via `next/font/google`.
 
 ## Next steps
 

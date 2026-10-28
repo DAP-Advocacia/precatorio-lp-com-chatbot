@@ -10,7 +10,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: #e9ebef;
+  background: #f5f2eb;
 }
 
 /* Base global (antes vinha do reset do Mantine): tipografia herdada pelos componentes. */
@@ -52,7 +52,7 @@ select {
   border: 1px solid transparent;
   border-radius: 4px;
   background: #228be6;
-  color: #fff;
+  color: #F5F2EB;
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1;
@@ -171,4 +171,16 @@ html {
     animation-duration: 1.6s !important;
     animation-iteration-count: infinite !important;
   }
+}
+
+/* Avatar da Karen: borda verde pulsando (indicador de online, no lugar da bolinha). */
+@keyframes avatarPulse {
+  0% { box-shadow: 0 0 0 0 rgba(26, 102, 77, 0.65); }
+  70% { box-shadow: 0 0 0 9px rgba(26, 102, 77, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(26, 102, 77, 0); }
+}
+
+.avatar-online {
+  border-color: #1a664d;
+  animation: avatarPulse 2s ease-out infinite;
 }

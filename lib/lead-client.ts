@@ -94,3 +94,42 @@ export async function enviarOficio(file: File): Promise<{ ok: true; extracted: O
     return { ok: false, message: 'Sem conexão. Verifique a internet e tente novamente.' };
   }
 }
+
+export type FormularioPayload = {
+  nome: string;
+  celular: string;
+  cpf?: string;
+  titularidadeOpcao?: 'meu' | 'outra_pessoa';
+  vinculoTitular?: string;
+  tipo: 'federal' | 'estadual' | 'municipal' | 'inss' | 'nao_sabe';
+  natureza?: 'alimentar' | 'comum' | 'nao_sabe';
+  uf: string;
+  municipio?: string;
+  papel?: 'proprio_titular' | 'advogado' | 'broker' | 'herdeiro_espolio' | 'terceiro';
+  titular?: { nome: string; cpf: string; celular?: string };
+  fase?: 'precatorio_expedido' | 'aguardando_expedicao' | 'em_andamento_sem_sentenca' | 'nao_sabe';
+  situacaoExpedicao?: 'expedido' | 'em_andamento' | 'nao_sabe';
+  melhorHorarioContato?: string;
+  melhorDiaContato?: string;
+  processo?: string;
+  expedicao?: string;
+  valor?: string;
+};
+
+// Fim das perguntas do teste B: curadoria (rank + foguinho), card no Bitrix e primeiro contato no WhatsApp.
+export async function enviarFormulario(p: FormularioPayload): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(apiPath('/api/formulario'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientSessionId: getClientSessionId(), attribution: getAttribution(), ...p }),
+      keepalive: true,
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, error: data?.error || 'Não foi possível enviar agora. Tente novamente.' };
+    trackAIChatLead(data, 'formulario');
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Sem conexão. Verifique a internet e tente novamente.' };
+  }
+}

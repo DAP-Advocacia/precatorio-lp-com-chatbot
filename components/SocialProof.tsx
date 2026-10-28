@@ -345,7 +345,7 @@ export default function SocialProof() {
         {VISIBLE_STATS.map((stat, idx) => (
           <div
             key={idx}
-            className="flex flex-col items-center justify-center rounded-[18px] border-[1.5px] border-[#8FB4EA] bg-[#EEF0F3] px-3 py-4 text-center shadow-[0_3px_12px_rgba(11,27,51,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:px-4 sm:py-5"
+            className="flex flex-col items-center justify-center rounded-[18px] border-[1.5px] border-[#8FB4EA] bg-[#EBE7DC] px-3 py-4 text-center shadow-[0_3px_12px_rgba(11,27,51,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:px-4 sm:py-5"
           >
             <div className="mb-2 flex items-center justify-center" aria-hidden="true">
               {stat.icon}
@@ -416,7 +416,7 @@ export default function SocialProof() {
             <button
               type="button"
               onClick={() => startAnalysis('depoimento-card')}
-              className="mt-4 inline-flex min-h-[48px] w-full cursor-pointer items-center justify-center rounded-full border-0 bg-navy px-6 py-3 text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(11,27,51,0.2)] transition-colors hover:bg-navy-accent sm:w-auto sm:self-start"
+              className="mt-4 inline-flex min-h-[48px] w-full cursor-pointer items-center justify-center rounded-full border border-navy bg-navy px-6 py-3 text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(11,27,51,0.2)] transition-colors hover:bg-white hover:text-navy sm:w-auto sm:self-start"
             >
               Quero analisar meu precatório
             </button>
@@ -560,7 +560,7 @@ export default function SocialProof() {
                 <button
                   type="button"
                   onClick={() => startAnalysis('depoimento-modal')}
-                  className="inline-flex min-h-[48px] w-full cursor-pointer items-center justify-center rounded-full border-0 bg-[#F7F5F1] px-6 py-3 text-[15px] font-extrabold text-navy-accent transition-colors hover:bg-white sm:w-auto"
+                  className="inline-flex min-h-[48px] w-full cursor-pointer items-center justify-center rounded-full border border-transparent bg-[#F5F2EB] px-6 py-3 text-[15px] font-extrabold text-navy-accent transition-colors hover:border-transparent hover:bg-navy hover:text-porcelain sm:w-auto"
                 >
                   Quero analisar meu precatório
                 </button>

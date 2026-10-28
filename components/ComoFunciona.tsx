@@ -76,8 +76,11 @@ function TagPill({ type, claro }: { type: TagType; claro: boolean }) {
   );
 }
 
-export default function ComoFunciona({ tema = 'escuro' }: { tema?: Tema }) {
-  const claro = tema === 'claro';
+// `coluna`: versão para dividir a linha com a secretária digital (home, fundo porcelain): lista vertical
+// em todas as larguras, sem fundo próprio (o wrapper da página fornece o porcelain).
+export default function ComoFunciona({ tema = 'escuro', layout = 'linha' }: { tema?: Tema; layout?: 'linha' | 'coluna' }) {
+  const coluna = layout === 'coluna';
+  const claro = tema === 'claro' || coluna;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useBeams(canvasRef);
@@ -94,8 +97,14 @@ export default function ComoFunciona({ tema = 'escuro' }: { tema?: Tema }) {
   return (
     <section
       data-screen-label="Como Funciona"
-      className={`relative overflow-hidden px-5 py-12 sm:px-8 sm:py-20 md:px-16 md:py-24 ${
-        claro
+      className={`relative overflow-hidden ${
+        coluna
+          ? 'px-4 pb-12 pt-2 sm:px-8 sm:pb-16 lg:flex lg:flex-col lg:justify-center lg:px-10 lg:py-16'
+          : 'px-5 py-12 sm:px-8 sm:py-20 md:px-16 md:py-24'
+      } ${
+        coluna
+          ? ''
+          : claro
           ? 'bg-white'
           : 'bg-navy bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(143,180,234,0.16)_0%,rgba(11,27,51,0)_70%),linear-gradient(180deg,#0B1B33_0%,#10233F_55%,#0B1B33_100%)]'
       }`}
@@ -111,9 +120,9 @@ export default function ComoFunciona({ tema = 'escuro' }: { tema?: Tema }) {
         </>
       )}
 
-      <div className="relative mx-auto max-w-[1140px]">
+      <div className={`relative mx-auto w-full ${coluna ? 'max-w-[560px] lg:max-w-[520px]' : 'max-w-[1140px]'}`}>
         {/* Section Header */}
-        <div className="mb-8 text-center sm:mb-12">
+        <div className={`mb-6 sm:mb-8 ${coluna ? 'text-left' : 'text-center sm:mb-12'}`}>
           <h2 className={`m-0 mb-2.5 text-[clamp(24px,3vw,34px)] font-extrabold tracking-[-0.01em] ${claro ? 'text-navy' : 'text-white'}`}>
             Como funciona
           </h2>
@@ -123,12 +132,12 @@ export default function ComoFunciona({ tema = 'escuro' }: { tema?: Tema }) {
         </div>
 
         {/* Mobile: lista vertical compacta */}
-        <ol className="m-0 flex list-none flex-col gap-3 p-0 sm:hidden">
+        <ol className={`m-0 flex list-none flex-col gap-3 p-0 ${coluna ? '' : 'sm:hidden'}`}>
           {STEPS.map((s) => (
             <li
               key={s.step}
-              className={`flex items-start gap-3.5 rounded-xl p-4 ${claro ? 'bg-[#F7F8FA]' : 'bg-[#0E182A]/90'} ${
-                s.tagType === 'consultant' ? 'border border-[#16A34A]/55' : claro ? 'border border-[#E5E7EB]' : 'border border-[#1E2D4A]'
+              className={`flex items-start gap-3.5 rounded-xl p-4 ${coluna ? 'bg-white shadow-[0_6px_18px_rgba(11,27,51,0.06)]' : claro ? 'bg-[#F5F2EB]' : 'bg-[#0E182A]/90'} ${
+                s.tagType === 'consultant' ? 'border border-[#16A34A]/55' : coluna ? 'border border-[#E0DACE]' : claro ? 'border border-[#E5E7EB]' : 'border border-[#1E2D4A]'
               }`}
             >
               <span
@@ -150,7 +159,7 @@ export default function ComoFunciona({ tema = 'escuro' }: { tema?: Tema }) {
         </ol>
 
         {/* Timeline Row (Step Numbers + Connecting Line) - Desktop (lg) */}
-        <div className="relative mb-6 hidden lg:block">
+        <div className={`relative mb-6 hidden ${coluna ? '!hidden' : 'lg:block'}`}>
           <div className={`absolute top-1/2 left-[12.5%] right-[12.5%] h-[2px] -translate-y-1/2 ${claro ? 'bg-[#E5E7EB]' : 'bg-[#28354A]'}`} />
           <div className="grid grid-cols-4">
             {STEPS.map((s) => (
@@ -164,11 +173,11 @@ export default function ComoFunciona({ tema = 'escuro' }: { tema?: Tema }) {
         </div>
 
         {/* Cards Grid - tablet (2 col) e desktop (4 col) */}
-        <div className="hidden gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+        <div className={`hidden gap-4 ${coluna ? '!hidden' : 'sm:grid sm:grid-cols-2 lg:grid-cols-4 lg:gap-5'}`}>
           {STEPS.map((s) => (
             <div
               key={s.step}
-              className={`flex min-h-[200px] flex-col rounded-2xl p-6 backdrop-blur-md transition-all duration-200 ${claro ? 'bg-[#F7F8FA]' : 'bg-[#0E182A]/90'} ${
+              className={`flex min-h-[200px] flex-col rounded-2xl p-6 backdrop-blur-md transition-all duration-200 ${claro ? 'bg-[#F5F2EB]' : 'bg-[#0E182A]/90'} ${
                 s.tagType === 'consultant'
                   ? 'border border-[#16A34A]/55 shadow-[0_0_24px_rgba(22,163,74,0.12)]'
                   : claro
@@ -194,7 +203,7 @@ export default function ComoFunciona({ tema = 'escuro' }: { tema?: Tema }) {
         </div>
 
         {/* Rodapés de grupo - Desktop */}
-        <div className="mt-5 hidden lg:grid lg:grid-cols-4 lg:gap-5">
+        <div className={`mt-5 hidden ${coluna ? '!hidden' : 'lg:grid lg:grid-cols-4 lg:gap-5'}`}>
           {/* Sua ação: passos 1 e 2 */}
           <div className="col-span-2 flex flex-col items-center">
             <div className="h-[2px] w-full rounded-full bg-[#1D4ED8]" />
@@ -215,14 +224,14 @@ export default function ComoFunciona({ tema = 'escuro' }: { tema?: Tema }) {
         </div>
 
         {/* CTA */}
-        <div className="mt-8 flex justify-center sm:mt-12">
+        <div className={`mt-6 flex sm:mt-8 ${coluna ? 'justify-center' : 'justify-center sm:mt-12'}`}>
           <a
             href="#ia"
             onClick={handleCta}
-            className={`inline-flex min-h-[52px] w-full items-center justify-center rounded-full border px-7 py-3.5 text-base font-extrabold no-underline transition-all duration-250 ease-out hover:-translate-y-px hover:bg-navy-accent hover:text-white sm:w-auto sm:py-4 ${
+            className={`inline-flex min-h-[52px] w-full items-center justify-center rounded-full border px-7 py-3.5 text-base font-extrabold no-underline transition-all duration-250 ease-out hover:-translate-y-px sm:w-auto sm:py-4 ${
               claro
-                ? 'border-navy bg-navy text-white shadow-[0_12px_32px_rgba(13,31,56,0.22)]'
-                : 'border-[rgba(143,180,234,0.45)] bg-[#F7F5F1] text-navy-accent shadow-[0_12px_32px_rgba(5,11,22,0.45)]'
+                ? 'border-navy bg-navy text-white shadow-[0_12px_32px_rgba(13,31,56,0.22)] hover:border-transparent hover:bg-transparent hover:text-navy'
+                : 'border-[rgba(143,180,234,0.45)] bg-[#F5F2EB] text-navy-accent hover:border-transparent hover:bg-navy hover:text-porcelain shadow-[0_12px_32px_rgba(5,11,22,0.45)]'
             }`}
           >
             Começar minha análise gratuita

@@ -18,8 +18,8 @@ export default function Faq() {
             {FAQ_DATA.map((f) => (
               <details
                 key={f.question}
-                className="group rounded-[10px] bg-[#F4F6F9] px-4 py-1"
-                style={{ borderBottom: '1px solid #EAEDF2' }}
+                className="group rounded-[10px] bg-[#F5F2EB] px-4 py-1"
+                style={{ borderBottom: '1px solid #EBE7DC' }}
               >
                 <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-1 py-4 text-[16px] font-bold leading-[1.4] text-navy [&::-webkit-details-marker]:hidden">
                   <span>{f.question}</span>

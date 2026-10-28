@@ -21,13 +21,13 @@ export async function renderOg(headline: string, sub: string, kicker?: string) {
           alignItems: 'flex-start',
           padding: '0 90px',
           background: 'linear-gradient(180deg, #0B1B33 0%, #10233F 60%, #0B1B33 100%)',
-          borderLeft: '16px solid #DAA520',
+          borderLeft: '16px solid #F5F2EB',
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={logoSrc} width={243} height={120} alt="" style={{ marginBottom: kicker ? 32 : 48 }} />
         {kicker && (
-          <div style={{ display: 'flex', marginBottom: 18, fontSize: 28, fontWeight: 700, color: '#DAA520' }}>
+          <div style={{ display: 'flex', marginBottom: 18, fontSize: 28, fontWeight: 700, color: '#F5F2EB' }}>
             {kicker}
           </div>
         )}
@@ -38,7 +38,7 @@ export async function renderOg(headline: string, sub: string, kicker?: string) {
             fontWeight: 800,
             lineHeight: 1.15,
             letterSpacing: '-0.02em',
-            color: '#FFFFFF',
+            color: '#F5F2EB',
             maxWidth: 1000,
           }}
         >

@@ -23,8 +23,8 @@ function Indicador({ indice, etapa, titulo }: { indice: number; etapa: number; t
         animate={status}
         variants={{
           pendente: { scale: 1, backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.25)', color: '#C7CFDE' },
-          ativa: { scale: 1.08, backgroundColor: 'rgba(218,165,32,0.18)', borderColor: '#DAA520', color: '#F5DD90' },
-          feita: { scale: 1, backgroundColor: '#DAA520', borderColor: '#DAA520', color: '#0B1B33' },
+          ativa: { scale: 1.08, backgroundColor: 'rgba(245,242,235,0.18)', borderColor: '#F5F2EB', color: '#F5F2EB' },
+          feita: { scale: 1, backgroundColor: '#F5F2EB', borderColor: '#F5F2EB', color: '#0B1B33' },
         }}
         transition={{ duration: 0.3 }}
         className="flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-bold"
@@ -54,7 +54,7 @@ function Conector({ completo }: { completo: boolean }) {
   return (
     <div className="relative mx-1.5 mt-[17px] h-0.5 flex-1 overflow-hidden rounded bg-white/15 sm:mx-2.5">
       <motion.div
-        className="absolute left-0 top-0 h-full bg-[#DAA520]"
+        className="absolute left-0 top-0 h-full bg-porcelain"
         initial={false}
         animate={{ width: completo ? '100%' : '0%' }}
         transition={{ duration: 0.4 }}

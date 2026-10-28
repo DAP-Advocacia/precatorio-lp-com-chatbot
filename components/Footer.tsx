@@ -36,7 +36,7 @@ export default function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => track('whatsapp_click', { origem: 'footer' })}
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-sky/40 px-4 text-[15px] font-bold text-sky no-underline transition-colors hover:border-white hover:text-white"
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-sky/40 px-4 text-[15px] font-bold text-sky no-underline transition-colors hover:border-sky hover:bg-sky hover:text-navy-deep"
           >
             {WA_DISPLAY} · WhatsApp
           </a>

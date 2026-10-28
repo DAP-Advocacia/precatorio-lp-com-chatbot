@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRightIcon, CircleDollarSignIcon, ClockIcon, LockIcon, MessageCircleIcon, ShieldCheckIcon } from 'lucide-react';
+import { ArrowRightIcon, CircleDollarSignIcon, ClockIcon, LockIcon, MessageCircleIcon, ShieldCheckIcon, XIcon } from 'lucide-react';
 import { getAttribution } from '@/lib/attribution';
 import { OPEN_CHAT_EVENT } from '@/lib/chat-events';
 import { enviarLead, enviarOficio, getClientSessionId, trackAIChatLead, type OficioExtraido } from '@/lib/lead-client';
@@ -16,7 +16,7 @@ import { protocoloFromSession, whatsappLink, WA_DISPLAY } from '@/lib/whatsapp';
 
 // Foto do avatar com zoom no rosto em public/karen-avatar.jpg. Sem o arquivo, o avatar mostra as iniciais.
 const FOTO = asset('/karen-avatar.jpg');
-const SAUDACAO = 'Olá! Sou a Karen, secretária digital da Premium Office. Seu precatório é federal, estadual ou municipal?';
+const SAUDACAO = 'Olá! Sou a Karen, secretária digital da Premium Office. Para iniciarmos sua análise gratuita com segurança jurídica, por favor me informe seu nome completo, CPF e WhatsApp com DDD.';
 // Prova social do rodapé do modal. O registro na OAB entra aqui quando o número oficial for informado.
 const PROVA_SOCIAL = '+1.200 precatórios analisados';
 
@@ -26,7 +26,7 @@ function Foto({ className, alt = 'Karen - Secretária Digital' }: { className?: 
   const [falhou, setFalhou] = useState(false);
   if (falhou) {
     return (
-      <div aria-hidden="true" className={`flex items-center justify-center bg-[#F5DD90] text-[13px] font-extrabold text-navy ${className ?? ''}`}>
+      <div aria-hidden="true" className={`flex items-center justify-center bg-porcelain text-[13px] font-extrabold text-navy ${className ?? ''}`}>
         K
       </div>
     );
@@ -47,13 +47,11 @@ function Foto({ className, alt = 'Karen - Secretária Digital' }: { className?: 
 // Prévia ilustrativa de como a conversa funciona (lado direito do modal); não é uma conversa real.
 // Cada fala da Karen é precedida do indicador "digitando"; o roteiro recomeça ao terminar.
 const PREVIA: Msg[] = [
-  { role: 'assistant', content: 'Olá! Sou a Karen. Seu precatório é federal, estadual ou municipal?' },
-  { role: 'user', content: 'Estadual' },
-  { role: 'assistant', content: 'Certo! De qual estado?' },
-  { role: 'user', content: 'São Paulo' },
-  { role: 'assistant', content: 'E qual o valor aproximado?' },
-  { role: 'user', content: 'Uns R$ 180 mil' },
-  { role: 'assistant', content: 'Ótimo! Já separei um especialista para a sua análise gratuita ✓' },
+  { role: 'assistant', content: 'Olá! Sou a Karen. Para iniciarmos sua análise gratuita, por favor me informe seu nome completo, CPF e WhatsApp com DDD.' },
+  { role: 'user', content: 'Carlos Silva, CPF 123.456.789-00, WhatsApp (11) 98765-4321' },
+  { role: 'assistant', content: 'Obrigada, Carlos! Seu precatório é federal, estadual ou municipal? E você é o próprio titular ou advogado/broker?' },
+  { role: 'user', content: 'Estadual de São Paulo, sou o titular e o precatório já foi expedido' },
+  { role: 'assistant', content: 'Excelente! Caso prioritário 🔥 Já registrei seus dados e enviei uma mensagem no seu WhatsApp para o especialista dar sequência!' },
 ];
 
 function PreviaConversa() {
@@ -108,22 +106,15 @@ function PreviaConversa() {
 
   return (
     <div aria-hidden="true" className="flex h-[230px] flex-col bg-black/25 overflow-hidden rounded-t-3xl sm:rounded-t-none sm:rounded-r-3xl sm:h-full sm:max-h-[460px]">
-      <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3 sm:px-5 sm:py-4 rounded-t-3xl sm:rounded-t-none sm:rounded-tr-3xl">
+      <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.04] py-3 pl-4 pr-14 sm:py-4 sm:pl-5 sm:pr-16 rounded-t-3xl sm:rounded-t-none sm:rounded-tr-3xl">
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-bold text-white sm:text-[17px]">Karen</div>
           <div className="flex items-center gap-1.5 text-[11px] text-[#C7CFDE] sm:text-[12px]">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            </span>
             Secretária digital
           </div>
         </div>
         <div className="relative flex-shrink-0">
-          <Foto className="h-12 w-12 rounded-full border-2 border-[#DAA520] shadow-[0_0_16px_rgba(218,165,32,0.4)] sm:h-14 sm:w-14" />
-          <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[#0B1B33] bg-emerald-400">
-            <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
-          </span>
+          <Foto className="h-12 w-12 rounded-full border-2 avatar-online sm:h-14 sm:w-14" />
         </div>
       </div>
       <div ref={listaRef} className="flex flex-1 flex-col gap-2.5 overflow-hidden px-4 py-3 sm:gap-3 sm:px-5 sm:py-4">
@@ -132,22 +123,22 @@ function PreviaConversa() {
             key={i}
             className={`max-w-[92%] flex-shrink-0 animate-aiIn rounded-2xl px-3.5 py-2.5 text-[13px] leading-snug sm:max-w-[90%] sm:text-[14px] ${
               m.role === 'user'
-                ? 'self-end rounded-br-sm bg-gradient-to-r from-[#DAA520] to-[#E8C26A] font-semibold text-[#0B1B33] shadow-[0_4px_16px_rgba(218,165,32,0.25)]'
+                ? 'self-end rounded-br-sm bg-gradient-to-r from-porcelain-deep to-porcelain font-semibold text-[#0B1B33] shadow-[0_4px_16px_rgba(245,242,235,0.25)]'
                 : 'self-start rounded-bl-sm border border-white/15 bg-white/[0.09] text-white shadow-[0_4px_16px_rgba(0,0,0,0.2)] backdrop-blur-md flex items-start gap-2.5'
             }`}
           >
             {m.role === 'assistant' && (
-              <Foto className="h-6 w-6 rounded-full border border-[#DAA520]/60 object-cover flex-shrink-0 mt-0.5" />
+              <Foto className="h-6 w-6 rounded-full border-2 avatar-online object-cover flex-shrink-0 mt-0.5" />
             )}
             <span className="flex-1">{m.content}</span>
           </div>
         ))}
         {digitando && (
           <div className="flex flex-shrink-0 animate-aiIn items-center gap-2.5 self-start rounded-2xl rounded-bl-sm border border-white/15 bg-white/[0.09] px-3.5 py-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.2)] backdrop-blur-md">
-            <Foto className="h-5 w-5 rounded-full border border-[#DAA520]/60 object-cover flex-shrink-0" />
+            <Foto className="h-5 w-5 rounded-full border-2 avatar-online object-cover flex-shrink-0" />
             <div className="flex items-center gap-1">
               {[0, 1, 2].map((d) => (
-                <span key={d} className="h-1.5 w-1.5 animate-blink rounded-full bg-[#DAA520]" style={{ animationDelay: `${d * 0.2}s` }} />
+                <span key={d} className="h-1.5 w-1.5 animate-blink rounded-full bg-porcelain" style={{ animationDelay: `${d * 0.2}s` }} />
               ))}
             </div>
           </div>
@@ -176,14 +167,23 @@ function ModalApresentacao({ onComecar }: { onComecar: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="sd-titulo"
-        className="relative flex max-h-[92dvh] sm:max-h-none w-full max-w-[680px] animate-fadeUp flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl border border-white/20 shadow-[0_32px_100px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.22)]"
+        className="relative flex max-h-[92dvh] sm:max-h-none w-full max-w-[680px] animate-fadeUp flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl shadow-[0_32px_100px_rgba(0,0,0,0.65)]"
       >
         {/* Fundo de vidro com blur isolado em camada própria para garantir bordas arredondadas sem artefatos */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 rounded-t-3xl sm:rounded-3xl bg-[rgba(10,23,45,0.88)] backdrop-blur-2xl" />
 
         {/* Orbs de refração e luz para o efeito de vidro */}
-        <div aria-hidden="true" className="pointer-events-none absolute -left-16 -top-16 -z-10 h-60 w-60 rounded-full bg-[#DAA520]/20 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -left-16 -top-16 -z-10 h-60 w-60 rounded-full bg-porcelain/10 blur-3xl" />
         <div aria-hidden="true" className="pointer-events-none absolute -right-16 -bottom-16 -z-10 h-64 w-64 rounded-full bg-sky/20 blur-3xl" />
+
+        <button
+          type="button"
+          onClick={onComecar}
+          aria-label="Fechar"
+          className="absolute right-3 top-3 z-20 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-white/10 p-0 text-white transition-colors duration-200 hover:border-transparent hover:bg-porcelain hover:text-navy sm:right-4 sm:top-4"
+        >
+          <XIcon size={18} aria-hidden="true" />
+        </button>
 
         <div className="relative z-10 grid grid-cols-1 sm:grid-cols-12 rounded-t-3xl sm:rounded-3xl">
           {/* Prévia da conversa com a IA: no mobile fica no topo compacto, no desktop na coluna da direita */}
@@ -193,11 +193,7 @@ function ModalApresentacao({ onComecar }: { onComecar: () => void }) {
           <div className="order-2 p-5 sm:order-1 sm:col-span-7 sm:p-7 bg-white/[0.03] flex flex-col justify-between rounded-b-3xl sm:rounded-b-none sm:rounded-l-3xl">
             <div>
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/35 bg-emerald-500/10 px-3 py-1 text-[12px] font-semibold text-emerald-300 shadow-sm sm:mb-4">
-                <Foto className="h-5 w-5 rounded-full border border-emerald-400/50 object-cover" />
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                </span>
+                <Foto className="h-5 w-5 rounded-full border-2 avatar-online object-cover" />
                 Karen · Online agora
               </div>
               <h2 id="sd-titulo" className="m-0 mb-2.5 text-[clamp(21px,4.5vw,27px)] font-bold leading-tight tracking-tight text-white sm:mb-3 sm:text-[clamp(23px,3vw,28px)]">
@@ -209,7 +205,7 @@ function ModalApresentacao({ onComecar }: { onComecar: () => void }) {
               <ul className="m-0 mb-6 flex list-none flex-wrap gap-2 p-0 text-[13px] text-white">
                 {selos.map(({ Icone, texto }) => (
                   <li key={texto} className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.08] px-3.5 py-1 text-[12px] font-medium text-[#E0E7F5] shadow-sm sm:text-[13px]">
-                    <Icone size={14} className="text-[#DAA520]" aria-hidden="true" />
+                    <Icone size={14} className="text-porcelain" aria-hidden="true" />
                     {texto}
                   </li>
                 ))}
@@ -220,7 +216,7 @@ function ModalApresentacao({ onComecar }: { onComecar: () => void }) {
                 <button
                   type="button"
                   onClick={onComecar}
-                  className="inline-flex min-h-[46px] cursor-pointer items-center justify-center gap-2 rounded-full border-0 bg-gradient-to-r from-[#DAA520] via-[#E8C26A] to-[#F5DD90] px-6 font-sans text-[14px] font-extrabold text-[#0B1B33] shadow-[0_8px_25px_rgba(218,165,32,0.35)] transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_12px_35px_rgba(218,165,32,0.5)] active:scale-[0.98] outline-none focus:outline-none focus:ring-0 focus-visible:outline-none sm:min-h-[48px] sm:text-[15px]"
+                  className="inline-flex min-h-[46px] cursor-pointer items-center justify-center gap-2 rounded-full border border-transparent bg-gradient-to-r from-porcelain-deep via-porcelain to-white px-6 font-sans text-[14px] font-extrabold text-[#0B1B33] shadow-[0_8px_25px_rgba(245,242,235,0.35)] transition-all duration-200 hover:scale-[1.02] hover:border-transparent hover:bg-none hover:bg-navy hover:text-porcelain hover:shadow-[0_12px_35px_rgba(245,242,235,0.25)] active:scale-[0.98] outline-none focus:outline-none focus:ring-0 focus-visible:outline-none sm:min-h-[48px] sm:text-[15px]"
                 >
                   Começar análise
                   <ArrowRightIcon size={16} aria-hidden="true" />
@@ -230,14 +226,14 @@ function ModalApresentacao({ onComecar }: { onComecar: () => void }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => track('whatsapp_click', { origem: 'modal_secretaria', variante: 'chat' })}
-                  className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 font-mono text-[13px] font-semibold text-white no-underline shadow-sm transition-all duration-200 hover:scale-[1.02] hover:bg-white/15 hover:border-emerald-400/40 sm:min-h-[48px] sm:text-[14px]"
+                  className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 font-mono text-[13px] font-semibold text-white no-underline shadow-sm transition-all duration-200 hover:scale-[1.02] hover:border-white hover:bg-white hover:text-navy sm:min-h-[48px] sm:text-[14px]"
                 >
                   <MessageCircleIcon size={16} className="text-emerald-400" aria-hidden="true" />
                   {WA_DISPLAY}
                 </a>
               </div>
               <p className="m-0 mt-4 flex items-center gap-1.5 text-[12px] text-[#8E9EB5] sm:mt-5 sm:text-[13px]">
-                <ShieldCheckIcon size={14} className="text-[#DAA520]" aria-hidden="true" />
+                <ShieldCheckIcon size={14} className="text-porcelain" aria-hidden="true" />
                 {PROVA_SOCIAL}
               </p>
             </div>
@@ -364,12 +360,8 @@ export default function SecretariaDigital() {
         id="ia"
         ref={secaoRef}
         data-screen-label="Secretária digital"
-        className="relative scroll-mt-4 overflow-hidden bg-navy bg-[radial-gradient(ellipse_80%_60%_at_50%_15%,rgba(143,180,234,0.18)_0%,rgba(11,27,51,0)_75%),linear-gradient(180deg,#0B1B33_0%,#0E1F38_50%,#0B1B33_100%)] px-4 py-10 sm:px-8 sm:py-16"
+        className="relative scroll-mt-4 overflow-hidden px-4 py-10 sm:px-8 sm:py-16 lg:flex lg:flex-col lg:justify-center lg:px-10"
       >
-        {/* Orbs de luz ambientais para gerar a refração vítrea em profundidade */}
-        <div aria-hidden="true" className="pointer-events-none absolute -left-20 top-1/4 h-80 w-80 rounded-full bg-[#DAA520]/15 blur-3xl" />
-        <div aria-hidden="true" className="pointer-events-none absolute -right-24 bottom-1/4 h-96 w-96 rounded-full bg-sky/20 blur-3xl" />
-        <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-[#003C68]/40 blur-3xl" />
 
         <motion.div
           initial={{ opacity: 0, y: 22 }}
@@ -378,27 +370,23 @@ export default function SecretariaDigital() {
           className="relative mx-auto max-w-[760px]"
         >
           {/* Card principal em Glassmorphism */}
-          <div className="relative overflow-hidden rounded-3xl border border-white/20 shadow-[0_32px_100px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.22)]">
+          <div className="relative isolate overflow-hidden rounded-3xl shadow-[0_16px_40px_rgba(11,27,51,0.16)]">
             {/* Fundo de vidro com blur isolado */}
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-[rgba(10,23,45,0.85)] backdrop-blur-2xl" />
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-gradient-to-b from-[#12264A] to-[#0A172D]" />
 
             {/* Cabeçalho translúcido com efeito de vidro */}
             <header className="flex items-center gap-3.5 border-b border-white/12 bg-white/[0.04] px-5 py-4 rounded-t-3xl">
               <div className="relative flex-shrink-0">
-                <Foto className="h-12 w-12 rounded-full border-2 border-[#DAA520] shadow-[0_0_16px_rgba(218,165,32,0.4)] object-cover" />
-                <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0B1B33] bg-emerald-400">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
-                </span>
+                <Foto className="h-12 w-12 rounded-full border-2 avatar-online object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-[16px] font-bold text-white">Karen</span>
-                  <span className="rounded-full border border-[#DAA520]/40 bg-[#DAA520]/20 px-2.5 py-0.5 text-[10px] font-semibold text-[#F5DD90] shadow-sm">
+                  <span className="rounded-full border border-porcelain/40 bg-porcelain/20 px-2.5 py-0.5 text-[10px] font-semibold text-porcelain shadow-sm">
                     Secretária digital
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[12px] text-[#C7CFDE]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
                   Online agora · Premium Office Precatórios
                 </div>
               </div>
@@ -409,7 +397,7 @@ export default function SecretariaDigital() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={cliqueWhatsapp}
-                className="hidden items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[13px] font-semibold text-white no-underline shadow-sm transition-all hover:bg-white/20 hover:border-emerald-400/40 sm:inline-flex"
+                className="hidden items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[13px] font-semibold text-white no-underline shadow-sm transition-all hover:border-white hover:bg-white hover:text-navy sm:inline-flex"
               >
                 Falar com atendente
               </motion.a>
@@ -418,28 +406,34 @@ export default function SecretariaDigital() {
             {/* Área de mensagens com Glassmorphism e Framer Motion */}
             <div
               ref={listaRef}
-              className="h-[min(62vh,540px)] space-y-3.5 overflow-y-auto bg-black/25 px-4 py-5 sm:px-6"
+              className="h-[min(62vh,540px)] space-y-3.5 overflow-y-auto bg-[#071226]/60 px-4 py-5 sm:px-6"
               aria-live="polite"
             >
               <AnimatePresence initial={false}>
                 {msgs.map((m, i) => (
                   <motion.div
                     key={i}
-                    initial={{ opacity: 0, y: 14, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 380, damping: 26 }}
+                    // Usuário: o texto "sai" do campo de digitação (largo, embaixo), sobe e encolhe até o balão.
+                    // Karen: o balão nasce pequeno junto ao indicador de digitação, sobe e estica até o tamanho final.
+                    initial={
+                      m.role === 'user'
+                        ? { opacity: 0.4, y: 96, scaleX: 1.35, scaleY: 0.7 }
+                        : { opacity: 0, y: 28, scaleX: 0.4, scaleY: 0.55 }
+                    }
+                    animate={{ opacity: 1, y: 0, scaleX: 1, scaleY: 1 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 24, mass: 0.9, opacity: { duration: 0.2 } }}
+                    style={{ transformOrigin: m.role === 'user' ? 'right bottom' : 'left bottom' }}
                     className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start items-start gap-2.5'}`}
                   >
                     {m.role === 'assistant' && (
                       <div className="relative mt-0.5 flex-shrink-0">
-                        <Foto className="h-8 w-8 rounded-full border border-[#DAA520]/60 object-cover shadow-sm" />
-                        <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-navy-deep bg-emerald-400" />
+                        <Foto className="h-8 w-8 rounded-full border-2 avatar-online object-cover shadow-sm" />
                       </div>
                     )}
                     <div
                       className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[14px] leading-[1.55] sm:text-[15px] ${
                         m.role === 'user'
-                          ? 'rounded-br-sm bg-gradient-to-r from-[#DAA520] to-[#E8C26A] font-semibold text-[#0B1B33] shadow-[0_4px_20px_rgba(218,165,32,0.3)]'
+                          ? 'rounded-br-sm bg-gradient-to-r from-porcelain-deep to-porcelain font-semibold text-[#0B1B33] shadow-[0_4px_20px_rgba(245,242,235,0.3)]'
                           : 'rounded-bl-sm border border-white/15 bg-white/[0.09] text-white shadow-[0_4px_18px_rgba(0,0,0,0.18)] backdrop-blur-md'
                       }`}
                     >
@@ -461,8 +455,7 @@ export default function SecretariaDigital() {
                     aria-label="Digitando"
                   >
                     <div className="relative mt-0.5 flex-shrink-0">
-                      <Foto className="h-8 w-8 rounded-full border border-[#DAA520]/60 object-cover shadow-sm" />
-                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-navy-deep bg-emerald-400" />
+                      <Foto className="h-8 w-8 rounded-full border-2 avatar-online object-cover shadow-sm" />
                     </div>
                     <div className="flex items-center gap-2.5 rounded-2xl rounded-bl-sm border border-white/15 bg-white/[0.09] px-4 py-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)] backdrop-blur-md">
                       <span className="text-[12px] font-medium text-[#C7CFDE]">Karen está digitando</span>
@@ -477,7 +470,7 @@ export default function SecretariaDigital() {
                               delay: d * 0.16,
                               ease: 'easeInOut',
                             }}
-                            className="h-1.5 w-1.5 rounded-full bg-[#DAA520]"
+                            className="h-1.5 w-1.5 rounded-full bg-porcelain"
                           />
                         ))}
                       </div>
@@ -535,15 +528,15 @@ export default function SecretariaDigital() {
                 whileTap={{ scale: 0.96 }}
                 type="submit"
                 disabled={enviando || !texto.trim()}
-                className="h-12 flex-shrink-0 cursor-pointer rounded-2xl border-0 bg-gradient-to-r from-[#DAA520] to-[#E8C26A] px-5 text-[15px] font-extrabold text-[#0B1B33] shadow-[0_4px_20px_rgba(218,165,32,0.35)] transition-all hover:brightness-105 hover:shadow-[0_6px_25px_rgba(218,165,32,0.5)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none outline-none focus:outline-none focus:ring-0"
+                className="h-12 flex-shrink-0 cursor-pointer rounded-2xl border border-transparent bg-gradient-to-r from-porcelain-deep to-porcelain px-5 text-[15px] font-extrabold text-[#0B1B33] shadow-[0_4px_20px_rgba(245,242,235,0.35)] transition-all hover:border-transparent hover:bg-none hover:bg-navy hover:text-porcelain disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none outline-none focus:outline-none focus:ring-0"
               >
                 Enviar
               </motion.button>
             </form>
           </div>
 
-          <p className="m-0 mt-3.5 flex items-center justify-center gap-1.5 text-center text-[12px] text-[#9AA6BC] sm:text-[13px]">
-            <LockIcon size={13} className="text-[#DAA520]" aria-hidden="true" />
+          <p className="m-0 mt-3.5 flex items-center justify-center gap-1.5 text-center text-[12px] text-[#5B6472] sm:text-[13px]">
+            <LockIcon size={13} className="text-navy" aria-hidden="true" />
             Conexão segura · telefone e CPF não são compartilhados com terceiros (LGPD)
           </p>
         </motion.div>

@@ -2,6 +2,7 @@ import Hero from '@/components/Hero';
 import SecretariaDigital from '@/components/ab/SecretariaDigital';
 import VarianteTracker from '@/components/ab/VarianteTracker';
 import ComoFunciona from '@/components/ComoFunciona';
+import BotaoChatMobile from '@/components/ab/BotaoChatMobile';
 import SocialProof from '@/components/SocialProof';
 import Faq from '@/components/Faq';
 import CtaFinal from '@/components/CtaFinal';
@@ -25,12 +26,18 @@ export default function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <VarianteTracker variante="chat" />
       <Hero />
-      <SecretariaDigital />
-      <ComoFunciona />
+      {/* Secretária digital + Como funciona: 2 colunas no desktop (lg), empilhados no mobile. */}
+      <div className="bg-porcelain">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-1 lg:grid-cols-2">
+          <SecretariaDigital />
+          <ComoFunciona layout="coluna" />
+        </div>
+      </div>
       <SocialProof />
       <Faq />
       <CtaFinal />
       <Footer />
+      <BotaoChatMobile />
     </div>
   );
 }

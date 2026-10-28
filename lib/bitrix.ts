@@ -6,7 +6,13 @@ import { protocoloFromSession } from '@/lib/whatsapp';
 import type { OficioFields } from '@/lib/oficio-extract';
 import { VARIANTE_ROTULO, type Variante } from '@/lib/variante';
 import { triarLead, type ConversaMsg, type OficioSnapshot, type Triagem } from '@/lib/triagem';
-import { parseValorNumerico } from '@/lib/curadoria';
+import {
+  parseValorNumerico,
+  ROTULO_FASE,
+  ROTULO_INTENCAO,
+  ROTULO_STATUS,
+  ROTULO_TITULAR,
+} from '@/lib/curadoria';
 
 // Pipeline "[LP] PREMIUM OFFICE v2", etapa "LP — Novo Lead" (etapa de sistema; não é a
 // primeira por ordenação, por isso precisa ser explícita). Sobrescrevíveis por env.
@@ -57,6 +63,13 @@ const DEAL_UF_PF_OU_EMPRESA = 'UF_CRM_1750089776'; // [+] PESSOA FISICA OU EMPRE
 const DEAL_PESSOA_FISICA_ID = '4206';
 const DEAL_UF_RANK_LEAD = 'UF_CRM_1767020776832'; // [MKT] RANK LEAD
 const RANK_LEAD_IDS: Record<string, string> = { 'A+': '8798', A: '8800', B: '8802', C: '8804', D: '8806', E: '8808' };
+
+// Campos de WhatsApp e Contato do Bitrix24
+const DEAL_UF_CONTATO_REALIZADO = 'UF_CRM_1706286749745'; // [S] Contato Realizado? (Sim=647, Não=645)
+const DEAL_CONTATO_REALIZADO_SIM_ID = '647';
+const DEAL_UF_WA_ULTIMO_CONTATO = 'ufCrmWaUlt'; // WhatsApp — último contato
+const DEAL_UF_ADVOGADO_ESCRITORIO = 'ufCrm_1761928502'; // [X] Nome do advogado / escritório:
+const DEAL_UF_INFORMACOES_EXTRAS = 'UF_CRM_1702986695'; // [+] INFORMAÇÕES EXTRAS
 
 const ESTADO_ENUM_IDS: Record<string, string> = {
   AC: '105', AL: '107', AM: '109', AP: '111', BA: '113', CE: '115', DF: '117',
@@ -283,12 +296,22 @@ export type CuradoriaLeadData = {
   rank?: 'A+' | 'A' | 'B' | 'C' | 'D' | 'E';
   status?: string;
   tipo?: string | null;
+  uf?: string | null;
+  municipio?: string | null;
   natureza?: string | null;
   relacaoTitular?: string | null;
+  vinculoTitular?: string | null;
   faseProcesso?: string | null;
+  situacaoExpedicao?: string | null;
   intencao?: string | null;
   temOficio?: boolean | null;
   temProcesso?: boolean | null;
+  numeroProcesso?: string | null;
+  nomeTitular?: string | null;
+  cpfTitular?: string | null;
+  celularTitular?: string | null;
+  melhorHorarioContato?: string | null;
+  melhorDiaContato?: string | null;
   valorAproximado?: string | null;
   parecer?: string | null;
   orientacoesComercial?: string | null;
@@ -298,7 +321,9 @@ export type LeadInput = {
   sessionId: string;
   nome?: string;
   celular?: string; // só dígitos, com DDD
+  cpf?: string;
   estado?: string; // UF
+  municipio?: string;
   stage?: string;
   resultado?: string;
   attribution?: Attribution;
@@ -309,6 +334,9 @@ export type LeadInput = {
   oficio?: OficioSnapshot | null;
   // Curadoria preliminar da Karen (IA) antes do envio ao Bitrix
   curadoria?: CuradoriaLeadData;
+  melhorHorarioContato?: string;
+  melhorDiaContato?: string;
+  vinculoTitular?: string;
 };
 
 const RESULTADOS_COM_AVISO: Record<string, string> = {
@@ -543,6 +571,129 @@ function origemDescricao(variante?: Variante): string {
   return variante && variante !== 'lp' ? `LP Precatórios (${VARIANTE_ROTULO[variante]})` : 'LP Precatórios (chatbot)';
 }
 
+/**
+ * Formata o dossiê executivo completo do lead para o campo [+] INFORMAÇÕES EXTRAS (UF_CRM_1702986695)
+ * e timeline do Bitrix24, estruturado com banners, emojis e detalhes da qualificação.
+ */
+export function formatarDossieCardBitrix(p: {
+  nome: string;
+  celular: string;
+  cpf?: string | null;
+  sessionId: string;
+  curadoria?: CuradoriaLeadData;
+  attr?: Attribution;
+  variante?: Variante;
+  contatoRealizado?: boolean;
+}): string {
+  const c = p.curadoria;
+  const temProcesso = Boolean(
+    c?.temProcesso ||
+    c?.faseProcesso === 'precatorio_expedido' ||
+    c?.faseProcesso === 'rpv_expedida' ||
+    c?.faseProcesso === 'aguardando_expedicao' ||
+    c?.numeroProcesso
+  );
+
+  const localidade = [c?.municipio, c?.uf].filter(Boolean).join(' - ') || 'Não especificada';
+  const esfera = c?.tipo ? c.tipo.toUpperCase() : 'Não informada';
+  const valor = c?.valorAproximado || 'Não informado';
+
+  const linhas: (string | null)[] = [
+    '===================================',
+    '⭐ [QUALIFICAÇÃO & CURADORIA DE PRECATÓRIO - IA KAREN]',
+    '===================================',
+    `• Lead / Contato: ${p.nome}`,
+    `• Telefone / WhatsApp: ${p.celular ? formatCelularBr(p.celular) : 'Não informado'}`,
+    p.cpf ? `• CPF do Contato: ${p.cpf}` : null,
+    `• Protocolo do Atendimento: ${protocoloFromSession(p.sessionId)}`,
+    `• Classificação do Lead: ${c?.status ? (ROTULO_STATUS as Record<string, string>)[c.status] || c.status : 'Qualificado'}`,
+    `• Rank de Prioridade: ${c?.rank ? `${c.rank} ${temProcesso ? '🔥 (ALTA PRIORIDADE)' : ''}` : 'C'}`,
+    `• Processo Judicial Ativo: ${temProcesso ? '🔥 SIM (Foguinho ativado no card)' : 'NÃO / EM APURAÇÃO'}`,
+    c?.numeroProcesso ? `• Nº do Processo Judicial: ${c.numeroProcesso}` : null,
+    `• Esfera do Precatório: ${esfera}`,
+    `• Localidade (UF / Município): ${localidade}`,
+    `• Valor Estimado Declarado: ${valor}`,
+    `• Fase Processual: ${c?.faseProcesso ? (ROTULO_FASE as Record<string, string>)[c.faseProcesso] || c.faseProcesso : 'Em apuração'}`,
+    `• Relação com o Crédito: ${c?.relacaoTitular ? (ROTULO_TITULAR as Record<string, string>)[c.relacaoTitular] || c.relacaoTitular : 'Titular'}`,
+  ];
+
+  if (c?.relacaoTitular && c.relacaoTitular !== 'proprio_titular') {
+    linhas.push(
+      '',
+      '===================================',
+      '👤 [DADOS DO TITULAR ORIGINÁRIO]',
+      '===================================',
+      `• Nome do Titular: ${c.nomeTitular || 'Não informado'}`,
+      `• CPF do Titular: ${c.cpfTitular || 'Não informado'}`,
+      `• Telefone do Titular: ${c.celularTitular ? formatCelularBr(c.celularTitular) : 'Não informado'}`,
+      `• Vínculo com o Titular: ${c.vinculoTitular || (ROTULO_TITULAR as Record<string, string>)[c.relacaoTitular] || c.relacaoTitular}`,
+      `• Intermediário (Contato): ${p.nome} (${(ROTULO_TITULAR as Record<string, string>)[c.relacaoTitular] || c.relacaoTitular})`
+    );
+  }
+
+  const horarioContato = c?.melhorHorarioContato;
+  const diaContato = c?.melhorDiaContato;
+  if (horarioContato || diaContato) {
+    linhas.push(
+      '',
+      '===================================',
+      '⏰ [PREFERÊNCIA DE CONTATO COMERCIAL]',
+      '===================================',
+      `• Melhor Horário: ${horarioContato || 'Qualquer horário'}`,
+      diaContato ? `• Melhor Dia para Contato: ${diaContato}` : null
+    );
+  }
+
+  linhas.push(
+    '',
+    '===================================',
+    '📋 [DIAGNÓSTICO JURÍDICO & ANÁLISE DE CESSÃO]',
+    '===================================',
+    `• Intenção de Cessão: ${c?.intencao ? (ROTULO_INTENCAO as Record<string, string>)[c.intencao] || c.intencao : 'Avaliando propostas'}`,
+    `• Documentação (Ofício Requisitório): ${c?.temOficio ? 'Possui ofício em mãos ✓' : 'Aguardando envio / Não possui'}`,
+    c?.parecer ? `• Parecer Técnico: ${c.parecer}` : null
+  );
+
+  linhas.push(
+    '',
+    '===================================',
+    '📱 [STATUS DE ATENDIMENTO & WHATSAPP]',
+    '===================================',
+    `• Primeiro Contato via WhatsApp API: ${p.contatoRealizado !== false ? 'Disparado com Sucesso ✓' : 'Aguardando disparo'}`,
+    `• Canal de Entrada: LP-IA (Secretária Digital Karen)`
+  );
+
+  if (c?.orientacoesComercial) {
+    linhas.push(
+      '',
+      '===================================',
+      '💼 [ORIENTAÇÃO COMERCIAL PARA FECHAMENTO]',
+      '===================================',
+      `👉 ${c.orientacoesComercial}`
+    );
+  }
+
+  const attr = p.attr || {};
+  linhas.push(
+    '',
+    '===================================',
+    '🎯 [ORIGEM & RASTREAMENTO DE MARKETING - MKT]',
+    '===================================',
+    '• Tag de Origem: [MKT] DE ONDE VEIO O LEAD? = LP-IA',
+    '• Funil de Origem: LP PREMIUM OFFICE',
+    attr.utm_source ? `• UTM Source: ${attr.utm_source}` : null,
+    attr.utm_medium ? `• UTM Medium: ${attr.utm_medium}` : null,
+    attr.utm_campaign ? `• Campanha: ${attr.utm_campaign}` : null,
+    attr.utm_content ? `• Conteúdo: ${attr.utm_content}` : null,
+    attr.landing_page ? `• Landing Page: ${attr.landing_page}` : null,
+    attr.gclid ? `• Google Click ID (GCLID): ${attr.gclid}` : null,
+    attr.fbclid ? `• Facebook Click ID (FBCLID): ${attr.fbclid}` : null,
+    '==================================='
+  );
+
+  return linhas.filter((l): l is string => l !== null).join('\n');
+}
+
 async function criarNegocio(input: LeadInput & { nome: string; celular: string }): Promise<DealRef> {
   const nome = sanitizeText(input.nome, 200);
   const attr = input.attribution ?? {};
@@ -559,9 +710,28 @@ async function criarNegocio(input: LeadInput & { nome: string; celular: string }
     })
   );
 
+  const temProcessoInicial = Boolean(
+    input.curadoria?.temProcesso ||
+    input.curadoria?.faseProcesso === 'precatorio_expedido' ||
+    input.curadoria?.faseProcesso === 'rpv_expedida' ||
+    input.curadoria?.faseProcesso === 'aguardando_expedicao' ||
+    input.curadoria?.numeroProcesso
+  );
+  const fogoInicial = temProcessoInicial ? '🔥 ' : '';
+
+  const dossie = formatarDossieCardBitrix({
+    nome,
+    celular: input.celular,
+    sessionId: input.sessionId,
+    curadoria: input.curadoria,
+    attr,
+    variante: input.variante,
+    contatoRealizado: true,
+  });
+
   const fields: Record<string, unknown> = {
-    // O sufixo da variante permite filtrar o teste A/B pelo título no Bitrix.
-    TITLE: `LP da Marlene - ${nome}${input.variante && input.variante !== 'lp' ? ` [${input.variante.toUpperCase()}]` : ''}`,
+    // Foguinho 🔥 caso tenha processo; sufixo de variante para filtrar no Bitrix.
+    TITLE: `${fogoInicial}LP da Marlene - ${nome}${input.variante && input.variante !== 'lp' ? ` [${input.variante.toUpperCase()}]` : ''}`,
     CONTACT_ID: contactId,
     CATEGORY_ID: DEAL_CATEGORY_ID,
     STAGE_ID: DEAL_STAGE_ID,
@@ -574,6 +744,7 @@ async function criarNegocio(input: LeadInput & { nome: string; celular: string }
     [DEAL_UF_NOME_CLIENTE]: nome,
     [DEAL_UF_MKT_ORIGEM_LEAD]: DEAL_ORIGEM_LEAD_LPIA_ID,
     [DEAL_UF_MKT_FUNIL_ORIGEM]: DEAL_FUNIL_PREMIUM_OFFICE_ID,
+    [DEAL_UF_INFORMACOES_EXTRAS]: dossie,
     ...camposDoContato(input.celular, attr),
     ...attributionFields(attr),
     ...attributionDealFields(attr),
@@ -599,14 +770,48 @@ async function criarNegocio(input: LeadInput & { nome: string; celular: string }
     if (c.temOficio != null) {
       fields[DEAL_UF_TEM_DOCUMENTOS] = c.temOficio ? SIM_NAO_IDS.documentos.sim : SIM_NAO_IDS.documentos.nao;
     }
-    if (c.temProcesso != null) {
-      fields[DEAL_UF_TEM_PROCESSO] = c.temProcesso ? SIM_NAO_IDS.processo.sim : SIM_NAO_IDS.processo.nao;
+    if (c.temProcesso != null || temProcessoInicial) {
+      fields[DEAL_UF_TEM_PROCESSO] = (c.temProcesso || temProcessoInicial) ? SIM_NAO_IDS.processo.sim : SIM_NAO_IDS.processo.nao;
     }
+    if (c.numeroProcesso) {
+      fields[DEAL_UF_NUMERO_PROCESSO] = sanitizeText(c.numeroProcesso, 80);
+    }
+    if (c.relacaoTitular === 'advogado' || c.relacaoTitular === 'broker') {
+      fields[DEAL_UF_ADVOGADO_ESCRITORIO] = sanitizeText(nome, 200);
+    }
+  }
+
+  // Persistência de CPF (validado) no Deal
+  if (input.cpf) {
+    const cpfLimpo = sanitizeText(input.cpf, 20);
+    fields[DEAL_UF_CPF_CLIENTE] = cpfLimpo;
+    fields[DEAL_UF_CPF] = cpfLimpo;
+    fields[DEAL_UF_CPF_BOT] = cpfLimpo;
+  }
+
+  // Persistência do Melhor Horário para Contato comercial
+  const prefHorario = input.melhorHorarioContato || input.curadoria?.melhorHorarioContato;
+  const prefDia = input.melhorDiaContato || input.curadoria?.melhorDiaContato;
+  if (prefHorario) {
+    fields[DEAL_UF_MELHOR_CONTATO] = sanitizeText(`${prefHorario}${prefDia ? ` (${prefDia})` : ''}`, 100);
   }
 
   const dealId = Number(
     await bitrixCall('crm.deal.add', { fields, params: { REGISTER_SONET_EVENT: 'Y' } })
   );
+
+  // Persistência de CPF no Contato
+  if (input.cpf && contactId) {
+    const cpfLimpo = sanitizeText(input.cpf, 20);
+    await bitrixCall('crm.contact.update', {
+      id: contactId,
+      fields: {
+        [CONTACT_UF_CPF]: cpfLimpo,
+        [CONTACT_UF_CPF_CNPJ]: cpfLimpo,
+      },
+    }).catch((error) => console.error('[bitrix] falha ao atualizar CPF do contato:', (error as Error).message));
+  }
+
   const ref = { dealId, contactId };
   dealCache.set(input.sessionId, ref);
   return ref;
@@ -650,9 +855,42 @@ async function atualizarNegocio(deal: DealRef, input: LeadInput) {
     if (c.temOficio != null) {
       curadoriaFields[DEAL_UF_TEM_DOCUMENTOS] = c.temOficio ? SIM_NAO_IDS.documentos.sim : SIM_NAO_IDS.documentos.nao;
     }
-    if (c.temProcesso != null) {
+    const temProcesso = Boolean(
+      c.temProcesso ||
+      c.faseProcesso === 'precatorio_expedido' ||
+      c.faseProcesso === 'rpv_expedida' ||
+      c.faseProcesso === 'aguardando_expedicao' ||
+      c.numeroProcesso
+    );
+    if (temProcesso) {
+      curadoriaFields[DEAL_UF_TEM_PROCESSO] = SIM_NAO_IDS.processo.sim;
+      // Adiciona o foguinho no título se ainda não tiver
+      const dealAtual = await bitrixCall<Record<string, any>>('crm.deal.get', { id: deal.dealId }).catch(() => null);
+      const titleAtual = String(dealAtual?.TITLE || '');
+      if (titleAtual && !titleAtual.includes('🔥')) {
+        curadoriaFields.TITLE = `🔥 ${titleAtual}`;
+      }
+    } else if (c.temProcesso != null) {
       curadoriaFields[DEAL_UF_TEM_PROCESSO] = c.temProcesso ? SIM_NAO_IDS.processo.sim : SIM_NAO_IDS.processo.nao;
     }
+    if (c.numeroProcesso) {
+      curadoriaFields[DEAL_UF_NUMERO_PROCESSO] = sanitizeText(c.numeroProcesso, 80);
+    }
+    if (c.relacaoTitular === 'advogado' || c.relacaoTitular === 'broker') {
+      curadoriaFields[DEAL_UF_ADVOGADO_ESCRITORIO] = sanitizeText(input.nome || 'Advogado / Broker', 200);
+    }
+    const dossie = formatarDossieCardBitrix({
+      nome: input.nome || '',
+      celular: input.celular || '',
+      sessionId: input.sessionId,
+      curadoria: input.curadoria,
+      attr: input.attribution,
+      variante: input.variante,
+      contatoRealizado: true,
+    });
+    curadoriaFields[DEAL_UF_INFORMACOES_EXTRAS] = dossie;
+    curadoriaFields[DEAL_UF_MKT_ORIGEM_LEAD] = DEAL_ORIGEM_LEAD_LPIA_ID;
+
     if (Object.keys(curadoriaFields).length) {
       await bitrixCall('crm.deal.update', { id: deal.dealId, fields: curadoriaFields }).catch((error) =>
         console.error('[bitrix] falha ao atualizar campos de curadoria:', (error as Error).message)
@@ -824,4 +1062,116 @@ export async function registrarCuradoriaComment(input: {
   const dealId = await negocioDaSessao(input.sessionId);
   if (!dealId) return;
   await comentarNoNegocio(dealId, input.comment);
+}
+
+export type BitrixContatoWhatsAppResult = {
+  sessionId: string;
+  dealId?: number;
+  celular: string;
+  mensagem: string;
+  sucesso: boolean;
+  detalhes?: string;
+};
+
+/**
+ * Marca no card do Bitrix24 que o primeiro contato via WhatsApp foi disparado:
+ * - Define [S] Contato Realizado? = Sim (647)
+ * - Registra data/hora no campo "WhatsApp — último contato"
+ * - Adiciona registro completo na timeline com o texto da mensagem disparada
+ */
+export async function marcarContatoRealizado(p: BitrixContatoWhatsAppResult): Promise<void> {
+  const deal = p.dealId ? { dealId: p.dealId, contactId: null } : await findDeal(p.sessionId);
+  if (!deal) return;
+
+  const agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const campos: Record<string, unknown> = {
+    [DEAL_UF_CONTATO_REALIZADO]: DEAL_CONTATO_REALIZADO_SIM_ID,
+    [DEAL_UF_WA_ULTIMO_CONTATO]: agora,
+  };
+
+  await bitrixCall('crm.deal.update', { id: deal.dealId, fields: campos }).catch((err) =>
+    console.error('[bitrix] erro ao atualizar campos de contato WhatsApp no deal:', (err as Error).message)
+  );
+
+  const comment = [
+    '📱 PRIMEIRO CONTATO VIA WHATSAPP API:',
+    `• Destinatário: ${p.celular}`,
+    `• Data/Hora: ${agora}`,
+    `• Status do envio: ${p.sucesso ? 'Realizado com sucesso ✓' : 'Aguardando / Falha na conexão ⚠'}`,
+    p.detalhes ? `• Detalhes técnicos: ${p.detalhes}` : null,
+    '\nMensagem enviada ao cliente:',
+    `"${p.mensagem}"`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  await bitrixCall('crm.timeline.comment.add', {
+    fields: { ENTITY_ID: deal.dealId, ENTITY_TYPE: 'deal', COMMENT: comment },
+  }).catch((err) => console.error('[bitrix] erro ao adicionar comentário de WhatsApp:', (err as Error).message));
+}
+
+/**
+ * Atualiza o card no Bitrix24 com o retorno ou novas informações coletadas via WhatsApp:
+ * - Localiza o Deal por dealId, sessionId ou telefone celular
+ * - Atualiza campos adicionais e a data do último contato
+ * - Registra na timeline do Deal a resposta recebida do cliente
+ */
+export async function atualizarCardAposWhatsApp(p: {
+  sessionId?: string;
+  dealId?: number;
+  celular?: string;
+  mensagemRecebida: string;
+  novosCampos?: Record<string, unknown>;
+}): Promise<{ atualizado: boolean; dealId?: number }> {
+  let targetDealId = p.dealId;
+  if (!targetDealId && p.sessionId) {
+    const deal = await findDeal(p.sessionId);
+    targetDealId = deal?.dealId;
+  }
+  if (!targetDealId && p.celular) {
+    // Busca no Bitrix pelo telefone do lead
+    const digitos = p.celular.replace(/\D/g, '');
+    const dddDigitos = digitos.length >= 12 && digitos.startsWith('55') ? digitos.slice(2) : digitos;
+    const deals = await bitrixCall<{ ID: string }[]>('crm.deal.list', {
+      filter: {
+        CATEGORY_ID: DEAL_CATEGORY_ID,
+        [`%${DEAL_UF_TELEFONE}`]: dddDigitos,
+      },
+      select: ['ID'],
+      order: { ID: 'DESC' },
+    }).catch(() => []);
+    if (deals && deals.length > 0) {
+      targetDealId = Number(deals[0].ID);
+    }
+  }
+
+  if (!targetDealId) {
+    return { atualizado: false };
+  }
+
+  const agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const fields: Record<string, unknown> = {
+    [DEAL_UF_WA_ULTIMO_CONTATO]: agora,
+    ...(p.novosCampos || {}),
+  };
+
+  await bitrixCall('crm.deal.update', { id: targetDealId, fields }).catch((err) =>
+    console.error('[bitrix] erro ao atualizar campos via WhatsApp webhook:', (err as Error).message)
+  );
+
+  const comment = [
+    '💬 RESPOSTA RECEBIDA VIA WHATSAPP:',
+    `• Data/Hora: ${agora}`,
+    p.celular ? `• Celular do remetente: ${p.celular}` : null,
+    '\nMensagem do cliente:',
+    `"${p.mensagemRecebida}"`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  await bitrixCall('crm.timeline.comment.add', {
+    fields: { ENTITY_ID: targetDealId, ENTITY_TYPE: 'deal', COMMENT: comment },
+  }).catch((err) => console.error('[bitrix] erro ao registrar retorno WhatsApp na timeline:', (err as Error).message));
+
+  return { atualizado: true, dealId: targetDealId };
 }

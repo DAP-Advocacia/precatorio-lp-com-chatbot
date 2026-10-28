@@ -25,7 +25,8 @@ const config: Config = {
         '450': '450ms',
       },
       fontFamily: {
-        sans: ['var(--font-montserrat)', 'Montserrat', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Inter', 'sans-serif'],
+        mono: ['var(--font-inter)', 'Inter', 'sans-serif'],
       },
       colors: {
         navy: {
@@ -36,9 +37,15 @@ const config: Config = {
           accent: '#0D1F38',
           border: '#223255',
         },
+        porcelain: {
+          DEFAULT: '#F5F2EB',
+          deep: '#E3DDCF',
+        },
         ink: '#1C2331',
-        mist: '#E9EBEF',
-        cloud: '#EEF0F3',
+        // Todo branco do sistema é porcelain (inclui text-white, bg-white e white/NN).
+        white: '#F5F2EB',
+        mist: '#F5F2EB',
+        cloud: '#EBE7DC',
         sky: '#8FB4EA',
       },
       keyframes: {

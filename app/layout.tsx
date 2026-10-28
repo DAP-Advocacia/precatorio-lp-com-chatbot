@@ -1,14 +1,14 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
-import { Montserrat } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import AttributionCapture from '@/components/AttributionCapture';
 import { SEO_DESCRIPTION, SEO_TITLE, SITE_NAME, SITE_URL } from '@/lib/site';
 import './globals.css';
 
-const montserrat = Montserrat({
+const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-montserrat',
+  variable: '--font-inter',
 });
 
 // Mesmo container GTM do site da Premium Office. NEXT_PUBLIC_GTM_ID sobrescreve; em `npm run dev`
@@ -111,7 +111,7 @@ const websiteJsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={montserrat.variable}>
+    <html lang="pt-BR" className={inter.variable}>
       <head>
         <script
           type="application/ld+json"

@@ -37,10 +37,10 @@ export default function CtaFinal({ tema = 'escuro' }: { tema?: Tema }) {
               track('cta_click', { origem: 'cta-final' });
               openChat('cta-final');
             }}
-            className={`inline-flex min-h-[52px] cursor-pointer items-center justify-center rounded-full border px-7 py-3.5 text-base font-extrabold transition-all duration-250 ease-out hover:-translate-y-px hover:bg-navy-accent hover:text-white ${
+            className={`inline-flex min-h-[52px] cursor-pointer items-center justify-center rounded-full border px-7 py-3.5 text-base font-extrabold transition-all duration-250 ease-out hover:-translate-y-px ${
               claro
-                ? 'border-navy bg-navy text-white shadow-[0_12px_32px_rgba(13,31,56,0.22)]'
-                : 'border-[rgba(143,180,234,0.45)] bg-[#F7F5F1] text-navy-accent shadow-[0_12px_32px_rgba(13,31,56,0.35)]'
+                ? 'border-navy bg-navy text-white shadow-[0_12px_32px_rgba(13,31,56,0.22)] hover:border-transparent hover:bg-transparent hover:text-navy'
+                : 'border-[rgba(143,180,234,0.45)] bg-[#F5F2EB] text-navy-accent hover:border-transparent hover:bg-navy hover:text-porcelain shadow-[0_12px_32px_rgba(13,31,56,0.35)]'
             }`}
           >
             Começar minha análise gratuita
@@ -51,7 +51,7 @@ export default function CtaFinal({ tema = 'escuro' }: { tema?: Tema }) {
             rel="noopener noreferrer"
             onClick={() => track('whatsapp_click', { origem: 'cta-final' })}
             className={`inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border px-7 py-3.5 text-base font-bold no-underline transition-colors ${
-              claro ? 'border-navy/30 text-navy hover:border-navy hover:bg-[#F7F8FA]' : 'border-sky/50 text-sky hover:border-white hover:text-white'
+              claro ? 'border-navy/30 text-navy hover:border-navy hover:bg-navy hover:text-white' : 'border-sky/50 text-sky hover:border-sky hover:bg-sky hover:text-navy-deep'
             }`}
           >
             Falar no WhatsApp

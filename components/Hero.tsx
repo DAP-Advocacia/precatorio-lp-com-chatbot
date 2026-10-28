@@ -59,7 +59,7 @@ export default function Hero({ tema = 'escuro' }: { tema?: Tema }) {
             className={`mb-4 block h-[52px] w-auto sm:mb-7 sm:h-[81px] ${claro ? 'brightness-0' : ''}`}
           />
 
-          <div className={`mb-6 hidden items-center gap-2 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold sm:inline-flex ${claro ? 'border-navy/15 bg-[#EEF0F3] text-navy' : 'border-sky/30 bg-white/5 text-sky'}`}>
+          <div className={`mb-6 hidden items-center gap-2 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold sm:inline-flex ${claro ? 'border-navy/15 bg-[#EBE7DC] text-navy' : 'border-sky/30 bg-white/5 text-sky'}`}>
             Antecipação de precatório · Titulares, herdeiros e advogados
           </div>
 
@@ -75,17 +75,17 @@ export default function Hero({ tema = 'escuro' }: { tema?: Tema }) {
           <a
             href="#ia"
             onClick={handleCta}
-            className={`inline-flex min-h-[52px] w-full items-center justify-center rounded-full border px-7 py-3.5 text-base font-extrabold no-underline transition-all duration-250 ease-out hover:-translate-y-px hover:bg-navy-accent hover:text-white sm:w-auto sm:py-4 ${
+            className={`inline-flex min-h-[52px] w-full items-center justify-center rounded-full border px-7 py-3.5 text-base font-extrabold no-underline transition-all duration-250 ease-out hover:-translate-y-px sm:w-auto sm:py-4 ${
               claro
-                ? 'border-navy bg-navy text-white shadow-[0_12px_32px_rgba(13,31,56,0.22)]'
-                : 'border-[rgba(143,180,234,0.45)] bg-[#F7F5F1] text-navy-accent shadow-[0_12px_32px_rgba(13,31,56,0.35)] hover:border-[rgba(143,180,234,0.45)] hover:shadow-[0_16px_38px_rgba(13,31,56,0.45)]'
+                ? 'border-navy bg-navy text-white shadow-[0_12px_32px_rgba(13,31,56,0.22)] hover:border-navy hover:bg-white hover:text-navy'
+                : 'border-[rgba(143,180,234,0.45)] bg-[#F5F2EB] text-navy-accent hover:border-transparent hover:bg-navy hover:text-porcelain shadow-[0_12px_32px_rgba(13,31,56,0.35)] hover:shadow-[0_16px_38px_rgba(13,31,56,0.45)]'
             }`}
           >
             Analisar meu precatório
           </a>
 
           <p className={`m-0 mt-3 text-sm font-semibold ${claro ? 'text-[#4B5563]' : 'text-[#C7CFDE]'}`}>
-            <span className="text-[#DAA520]" aria-hidden="true">
+            <span className={claro ? 'text-navy' : 'text-porcelain'} aria-hidden="true">
               ★
             </span>{' '}
             4,9 no Google · +100 avaliações
@@ -94,7 +94,7 @@ export default function Hero({ tema = 'escuro' }: { tema?: Tema }) {
           <div className="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 sm:mt-8">
             {TRUST_MARKERS.map((label) => (
               <div key={label} className="flex items-center gap-2">
-                <span className="h-[7px] w-[7px] flex-shrink-0 rounded-full bg-[#DAA520]" />
+                <span className={`h-[7px] w-[7px] flex-shrink-0 rounded-full ${claro ? 'bg-navy' : 'bg-porcelain'}`} />
                 <span className={`text-[13px] font-medium sm:text-sm ${claro ? 'text-[#4B5563]' : 'text-[#C7CFDE]'}`}>{label}</span>
               </div>
             ))}

@@ -100,7 +100,7 @@ async function prepareOficioFile(file: File): Promise<File> {
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       if (!ctx) return file;
-      ctx.fillStyle = '#fff'; // PNG com transparência vira fundo branco no JPEG
+      ctx.fillStyle = '#F5F2EB'; // PNG com transparência vira fundo branco no JPEG
       ctx.fillRect(0, 0, w, h);
       ctx.drawImage(img.source, 0, 0, w, h);
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
@@ -411,8 +411,8 @@ const BUBBLE_FONT_PX = 15;
 const USER_BUBBLE_PAD = '12px 16px';
 const AI_BUBBLE: CSSProperties = {
   maxWidth: '100%',
-  background: '#fff',
-  border: '1px solid #EAEDF2',
+  background: '#F5F2EB',
+  border: '1px solid #EBE7DC',
   color: '#2B3346',
   padding: '12px 15px',
   borderRadius: '16px',
@@ -424,7 +424,7 @@ const AI_BUBBLE: CSSProperties = {
 const USER_BUBBLE: CSSProperties = {
   maxWidth: '100%',
   background: '#0B1B33',
-  color: '#fff',
+  color: '#F5F2EB',
   padding: USER_BUBBLE_PAD,
   borderRadius: '16px',
   borderTopRightRadius: '3px',
@@ -466,13 +466,13 @@ function LinkBtn({ className = '', children, ...rest }: ComponentPropsWithoutRef
     </a>
   );
 }
-const PRIMARY_BTN: CSSProperties = { height: 'auto', minHeight: '48px', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #0D1F38', background: '#0D1F38', color: '#F7F5F1', fontWeight: 800, fontSize: '15px', textAlign: 'center', lineHeight: 1.35, textDecoration: 'none' };
-const SECONDARY_BTN: CSSProperties = { height: 'auto', minHeight: '48px', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #C9D0DC', background: '#fff', color: '#3B4457', fontWeight: 700, fontSize: '15px', textAlign: 'center', lineHeight: 1.35, textDecoration: 'none' };
-const PRIMARY_HOVER = 'transition-colors duration-250 hover:!bg-[#F7F5F1] hover:!text-navy-accent';
+const PRIMARY_BTN: CSSProperties = { height: 'auto', minHeight: '48px', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #0D1F38', background: '#0D1F38', color: '#F5F2EB', fontWeight: 800, fontSize: '15px', textAlign: 'center', lineHeight: 1.35, textDecoration: 'none' };
+const SECONDARY_BTN: CSSProperties = { height: 'auto', minHeight: '48px', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #C9D0DC', background: '#F5F2EB', color: '#3B4457', fontWeight: 700, fontSize: '15px', textAlign: 'center', lineHeight: 1.35, textDecoration: 'none' };
+const PRIMARY_HOVER = 'transition-colors duration-250 hover:!bg-[#F5F2EB] hover:!text-navy-accent';
 const SECONDARY_HOVER = 'transition-colors duration-250 hover:!bg-[#5B6478] hover:!text-white';
 // <label> estilizado como botão (abre o seletor de arquivo sem JS, inclusive no iOS).
 const LABEL_BTN_BASE: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', cursor: 'pointer', width: '100%' };
-const COMPACT_BTN: CSSProperties = { flex: '1 1 0%', minWidth: 0, minHeight: '44px', padding: '9px 12px', borderRadius: '999px', border: '1.5px solid #0D1F38', background: '#fff', color: '#0D1F38', fontWeight: 700, fontSize: '14px', lineHeight: 1.3, textAlign: 'center', textDecoration: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', fontFamily: 'inherit' };
+const COMPACT_BTN: CSSProperties = { flex: '1 1 0%', minWidth: 0, minHeight: '44px', padding: '9px 12px', borderRadius: '999px', border: '1.5px solid #0D1F38', background: '#F5F2EB', color: '#0D1F38', fontWeight: 700, fontSize: '14px', lineHeight: 1.3, textAlign: 'center', textDecoration: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', fontFamily: 'inherit' };
 
 function getOrCreateClientSessionId(): string {
   if (typeof window === 'undefined') return '';
@@ -538,9 +538,9 @@ const MessageItem = React.memo(function MessageItem({ m }: { m: any }) {
           <div style={{ fontWeight: 800, fontSize: '15px', color: '#0B1B33', marginBottom: '10px' }}>Dados extraídos do documento</div>
           <dl style={{ margin: 0 }}>
             {m.items.map((item: any) => (
-              <div key={item.label} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: '12px', rowGap: '2px', padding: '7px 0', fontSize: '14px', lineHeight: 1.45, borderBottom: '1px solid #EEF1F5' }}>
+              <div key={item.label} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: '12px', rowGap: '2px', padding: '7px 0', fontSize: '14px', lineHeight: 1.45, borderBottom: '1px solid #EBE7DC' }}>
                 <dt style={{ color: '#5B6478', flexShrink: 0 }}>{item.label}</dt>
-                <dd style={{ margin: 0, color: '#1C2331', fontWeight: 700, textAlign: 'right', marginLeft: 'auto', overflowWrap: 'anywhere', fontFamily: item.mono ? 'var(--font-roboto-mono, ui-monospace, monospace)' : undefined }}>
+                <dd style={{ margin: 0, color: '#1C2331', fontWeight: 700, textAlign: 'right', marginLeft: 'auto', overflowWrap: 'anywhere', fontFamily: item.mono ? 'inherit' : undefined }}>
                   {item.value}
                 </dd>
               </div>
@@ -1469,7 +1469,7 @@ export default class ChatSection extends React.Component<{}, State> {
       textAlign: isEnd ? 'left' : 'center',
       padding: isEnd ? USER_BUBBLE_PAD : '0 14px',
       background: isEnd ? '#0B1B33' : '#0D1F38',
-      color: isEnd ? '#fff' : '#F7F5F1',
+      color: isEnd ? '#F5F2EB' : '#F5F2EB',
       fontWeight: isEnd ? 600 : 700,
       fontSize: `${BUBBLE_FONT_PX}px`,
       lineHeight: 1.55,
@@ -1512,7 +1512,7 @@ export default class ChatSection extends React.Component<{}, State> {
             lineHeight: 1.4,
             fontFamily: 'inherit',
             color: '#1C2331',
-            background: '#fff',
+            background: '#F5F2EB',
             outline: 'none',
             minHeight: '52px',
             maxHeight: '120px',
@@ -1540,7 +1540,7 @@ export default class ChatSection extends React.Component<{}, State> {
             padding: 0,
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5F2EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <line x1="22" y1="2" x2="11" y2="13"></line>
             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
           </svg>
@@ -1657,9 +1657,9 @@ export default class ChatSection extends React.Component<{}, State> {
               fontSize: '16px', // >= 16px impede o zoom automático do iOS Safari
               fontWeight: 600,
               color: '#1C2331',
-              background: '#fff',
+              background: '#F5F2EB',
               outline: 'none',
-              fontFamily: isCel ? 'var(--font-roboto-mono, inherit)' : 'inherit',
+              fontFamily: isCel ? 'inherit' : 'inherit',
             }}
           />
           {this.renderLeadError()}
@@ -1667,7 +1667,7 @@ export default class ChatSection extends React.Component<{}, State> {
                         type="submit"
             disabled={!hasValue}
             className={PRIMARY_HOVER}
-            style={{ ...PRIMARY_BTN, width: '100%', maxWidth: '340px', borderRadius: '999px', background: hasValue ? '#0D1F38' : '#B9C1D0', borderColor: hasValue ? '#0D1F38' : '#B9C1D0', color: '#fff' }}
+            style={{ ...PRIMARY_BTN, width: '100%', maxWidth: '340px', borderRadius: '999px', background: hasValue ? '#0D1F38' : '#B9C1D0', borderColor: hasValue ? '#0D1F38' : '#B9C1D0', color: '#F5F2EB' }}
           >
             Continuar
           </Btn>
@@ -1712,7 +1712,7 @@ export default class ChatSection extends React.Component<{}, State> {
               <div
                 id={UF_TOOLTIP_ID}
                 role="note"
-                style={{ width: '100%', boxSizing: 'border-box', background: '#0B1B33', color: '#F7F5F1', fontSize: '14px', lineHeight: 1.5, padding: '10px 14px', borderRadius: '12px', marginBottom: '4px', textAlign: 'center', overflowWrap: 'anywhere' }}
+                style={{ width: '100%', boxSizing: 'border-box', background: '#0B1B33', color: '#F5F2EB', fontSize: '14px', lineHeight: 1.5, padding: '10px 14px', borderRadius: '12px', marginBottom: '4px', textAlign: 'center', overflowWrap: 'anywhere' }}
               >
                 {LEAD_TOOLTIP}
               </div>
@@ -1741,7 +1741,7 @@ export default class ChatSection extends React.Component<{}, State> {
                 fontWeight: 600,
                 fontFamily: 'inherit',
                 color: selectedUf ? '#1C2331' : '#5B6478',
-                background: '#fff',
+                background: '#F5F2EB',
                 outline: 'none',
                 cursor: 'pointer',
               }}
@@ -1775,7 +1775,7 @@ export default class ChatSection extends React.Component<{}, State> {
               borderRadius: '999px',
               background: selectedUf ? '#0D1F38' : '#B9C1D0',
               borderColor: selectedUf ? '#0D1F38' : '#B9C1D0',
-              color: '#fff',
+              color: '#F5F2EB',
               cursor: selectedUf ? 'pointer' : 'default',
             }}
           >
@@ -1963,7 +1963,7 @@ export default class ChatSection extends React.Component<{}, State> {
         <div className="mx-auto flex max-w-[1480px] flex-wrap items-start justify-center gap-6 lg:gap-10 lg:justify-start">
           {/* LEFT: progress */}
           <div className="hidden w-full min-w-[260px] max-w-[320px] flex-[1_1_260px] flex-col self-stretch sm:flex">
-            <div className="flex h-full flex-col rounded-[20px] border border-[#EAEDF2] bg-[#EEF0F3] p-6 shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]">
+            <div className="flex h-full flex-col rounded-[20px] border border-[#EBE7DC] bg-[#EBE7DC] p-6 shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]">
               <div className="mb-4.5 text-center text-[13px] font-extrabold uppercase tracking-[0.05em] text-[#5B6478]">Progresso da análise</div>
               <ol className="m-0 flex flex-1 list-none flex-col p-0 py-1">
                 {ANALYSIS_STEPS.map((step, i) => {
@@ -1973,7 +1973,7 @@ export default class ChatSection extends React.Component<{}, State> {
                     <li key={step.title} aria-current={i === currentStepIdx ? 'step' : undefined} className={`relative ${isLast ? '' : 'flex-1 pb-5'}`}>
                       {!isLast && <div className="pointer-events-none absolute bottom-0 left-[13px] top-[32px] w-[2px] bg-[#DDE2EA]" />}
                       <div className="flex items-center gap-3">
-                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-extrabold" style={{ background: isDone ? '#0D1F38' : '#EEF0F3', color: isDone ? '#fff' : '#0B1B33', border: isDone ? 'none' : '1.5px solid #0B1B33' }}>
+                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-extrabold" style={{ background: isDone ? '#0D1F38' : '#EBE7DC', color: isDone ? '#F5F2EB' : '#0B1B33', border: isDone ? 'none' : '1.5px solid #0B1B33' }}>
                           {i + 1}
                         </div>
                         <span className="text-[14px] font-bold text-navy">{step.title}</span>
@@ -1997,8 +1997,8 @@ export default class ChatSection extends React.Component<{}, State> {
               aria-label={fullscreenMobile ? 'Conversa com a assistente Premium Office' : undefined}
               className={
                 fullscreenMobile
-                  ? 'fixed inset-0 z-40 flex flex-col overflow-hidden rounded-none border-0 bg-white sm:static sm:z-auto sm:flex-none sm:rounded-3xl sm:border sm:border-[#EAEDF2] sm:shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]'
-                  : 'overflow-hidden rounded-3xl border border-[#EAEDF2] bg-white shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]'
+                  ? 'fixed inset-0 z-40 flex flex-col overflow-hidden rounded-none border-0 bg-white sm:static sm:z-auto sm:flex-none sm:rounded-3xl sm:border sm:border-[#EBE7DC] sm:shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]'
+                  : 'overflow-hidden rounded-3xl border border-[#EBE7DC] bg-white shadow-[0_32px_70px_-12px_rgba(11,27,51,0.35),0_12px_24px_rgba(11,27,51,0.12)]'
               }
               style={fullscreenMobile ? { height: '100dvh' } : undefined}
             >
@@ -2057,8 +2057,8 @@ export default class ChatSection extends React.Component<{}, State> {
                 aria-label="Mensagens da conversa"
                 className={
                   fullscreenMobile
-                    ? 'relative flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto bg-[#EEF0F3] p-3.5 sm:p-6'
-                    : 'relative flex h-[calc(100svh-240px)] max-h-[560px] min-h-[320px] flex-col gap-3.5 overflow-y-auto bg-[#EEF0F3] p-3.5 sm:h-[600px] sm:max-h-none sm:min-h-0 sm:p-6'
+                    ? 'relative flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto bg-[#EBE7DC] p-3.5 sm:p-6'
+                    : 'relative flex h-[calc(100svh-240px)] max-h-[560px] min-h-[320px] flex-col gap-3.5 overflow-y-auto bg-[#EBE7DC] p-3.5 sm:h-[600px] sm:max-h-none sm:min-h-0 sm:p-6'
                 }
                 style={fullscreenMobile ? { scrollbarWidth: 'none', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' } : { scrollbarWidth: 'none' }}
               >
@@ -2078,7 +2078,7 @@ export default class ChatSection extends React.Component<{}, State> {
               </div>
 
               <div
-                className="flex-shrink-0 border-t border-[#EAEDF2] bg-[#EEF0F3] px-3.5 py-3 sm:px-5 sm:py-4.5"
+                className="flex-shrink-0 border-t border-[#EBE7DC] bg-[#EBE7DC] px-3.5 py-3 sm:px-5 sm:py-4.5"
                 style={fullscreenMobile ? { paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' } : undefined}
               >
                 {this.renderChatInput()}
