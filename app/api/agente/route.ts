@@ -280,7 +280,7 @@ export async function POST(request: Request) {
   // Tool 1: Triagem e Ranqueamento dos Dados do Lead
   const triarDadosLeadTool = tool(
     async (args: TriarDadosLeadArgs) => {
-      const relacao = args.relacao_titular || (args.titularidade_opcao === 'meu' ? 'proprio_titular' : 'terceiro');
+      const relacao = args.relacao_titular || (args.titularidade_opcao === 'meu' ? 'proprio_titular' : args.titularidade_opcao === 'outra_pessoa' ? 'terceiro' : undefined);
       const fase = args.situacao_expedicao === 'expedido' ? 'precatorio_expedido' : args.situacao_expedicao === 'em_andamento' ? 'em_andamento_sem_sentenca' : 'nao_sabe';
       const temProc = args.situacao_expedicao === 'expedido' || Boolean(args.numero_processo) || undefined;
 
@@ -336,10 +336,12 @@ export async function POST(request: Request) {
       const nome = args.nome.trim().replace(/\s+/g, ' ');
       if (!/^[\p{L}][\p{L}\s'.-]*$/u.test(nome)) return 'Nome inválido: confirme o nome completo (somente letras).';
 
-      const relacao = args.relacao_titular || (args.titularidade_opcao === 'meu' ? 'proprio_titular' : 'terceiro');
+      const relacao = args.relacao_titular || (args.titularidade_opcao === 'meu' ? 'proprio_titular' : args.titularidade_opcao === 'outra_pessoa' ? 'terceiro' : undefined);
       const fase = args.situacao_expedicao === 'expedido' ? 'precatorio_expedido' : args.situacao_expedicao === 'em_andamento' ? 'em_andamento_sem_sentenca' : 'nao_sabe';
       const temProc = args.situacao_expedicao === 'expedido' || Boolean(args.numero_processo) || undefined;
-      const cpfAlvoTitular = args.cpf_titular || cpfTitular;
+      // CPF do titular: o informado ao LLM só vale se for um CPF válido (somente dígitos); senão, o extraído das mensagens.
+      const cpfArgDigitos = (args.cpf_titular || '').replace(/\D/g, '');
+      const cpfAlvoTitular = (isValidCpf(cpfArgDigitos) ? cpfArgDigitos : undefined) || cpfTitular;
 
       // Executa triagem e curadoria completa para preenchimento no Bitrix
       const curadoria = executarCuradoria({
@@ -378,14 +380,13 @@ export async function POST(request: Request) {
             rank: curadoria.rank,
             status: curadoria.status,
             tipo: args.esfera,
-            relacaoTitular: curadoria.relacaoTitular,
+            relacaoTitular: relacao,
             vinculoTitular: args.vinculo_titular,
             nomeTitular: args.nome_titular,
             cpfTitular: cpfAlvoTitular,
             celularTitular,
             faseProcesso: curadoria.faseProcesso,
             situacaoExpedicao: args.situacao_expedicao,
-            intencao: curadoria.intencao,
             temProcesso: curadoria.temProcesso,
             numeroProcesso: args.numero_processo,
             municipio: args.municipio,
@@ -413,10 +414,15 @@ export async function POST(request: Request) {
           });
         }
 
-        // Se CPF do titular foi fornecido (ou do próprio contato), agenda enriquecimento
-        const cpfParaEnriquecer = cpfAlvoTitular || cpf;
+        // Pesquisa do ofício (Infosimples, só Federal/Estadual com UF) é sempre pelo CPF do TITULAR do crédito: o do
+        // próprio contato só quando ele é o titular. Se o contato é advogado/herdeiro/terceiro e o
+        // CPF do titular ainda não veio, não consulta o CPF do contato (gastaria crédito com a pessoa errada).
+        const contatoEhOutraPessoa = relacao != null && relacao !== 'proprio_titular';
+        const cpfParaEnriquecer = contatoEhOutraPessoa ? cpfAlvoTitular : cpfAlvoTitular || cpf;
         if (cpfParaEnriquecer) {
-          agendarCpfEEnriquecimento({ sessionId: clientSessionId, cpf: cpfParaEnriquecer, nome: args.nome_titular || nome, celular });
+          agendarCpfEEnriquecimento({ sessionId: clientSessionId, cpf: cpfParaEnriquecer, dealId, esfera: args.esfera, uf: args.uf });
+        } else if (contatoEhOutraPessoa) {
+          console.warn('[api/agente] pesquisa do ofício não disparada: contato não é o titular e o CPF do titular não foi informado');
         }
 
         // DISPARO DO PRIMEIRO CONTATO VIA WHATSAPP API
@@ -444,14 +450,13 @@ export async function POST(request: Request) {
                 rank: curadoria.rank,
                 status: curadoria.status,
                 tipo: args.esfera,
-                relacaoTitular: curadoria.relacaoTitular,
+                relacaoTitular: relacao,
                 vinculoTitular: args.vinculo_titular,
                 nomeTitular: args.nome_titular,
                 cpfTitular: cpfAlvoTitular,
                 celularTitular,
                 faseProcesso: curadoria.faseProcesso,
                 situacaoExpedicao: args.situacao_expedicao,
-                intencao: curadoria.intencao,
                 temProcesso: curadoria.temProcesso,
                 numeroProcesso: args.numero_processo,
                 municipio: args.municipio,

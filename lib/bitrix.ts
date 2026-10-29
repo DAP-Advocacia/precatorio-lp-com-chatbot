@@ -8,9 +8,7 @@ import { VARIANTE_ROTULO, type Variante } from '@/lib/variante';
 import { triarLead, type ConversaMsg, type OficioSnapshot, type Triagem } from '@/lib/triagem';
 import {
   parseValorNumerico,
-  ROTULO_FASE,
   ROTULO_INTENCAO,
-  ROTULO_STATUS,
   ROTULO_TITULAR,
 } from '@/lib/curadoria';
 
@@ -571,9 +569,40 @@ function origemDescricao(variante?: Variante): string {
   return variante && variante !== 'lp' ? `LP Precatórios (${VARIANTE_ROTULO[variante]})` : 'LP Precatórios (chatbot)';
 }
 
+const NAO_INFORMADO = 'Não informado';
+
+const ROTULO_ESFERA: Record<string, string> = {
+  federal: 'Federal (lead prioritário)',
+  estadual: 'Estadual (lead secundário)',
+  municipal: 'Municipal (lead secundário)',
+  inss: 'INSS',
+  outro: 'Outro',
+  nao_sabe: 'Não sabe informar (pendente de triagem até identificar a esfera)',
+};
+
+// Faixas de valor definidas pelo marketing para MQL.
+function faixaValor(texto?: string | null): string {
+  if (!texto) return NAO_INFORMADO;
+  const n = parseValorNumerico(texto);
+  if (n == null) return /n[aã]o\s*sei|n[aã]o\s*sabe/i.test(texto) ? 'Não sabe informar' : `${texto} (faixa não identificada)`;
+  if (n <= 50_000) return 'Até R$ 50 mil';
+  if (n <= 200_000) return 'De R$ 50 mil a R$ 200 mil';
+  return 'Acima de R$ 200 mil';
+}
+
+function existenciaPrecatorio(c?: CuradoriaLeadData): { texto: string; ok: boolean } {
+  const expedido = c?.situacaoExpedicao === 'expedido' || c?.faseProcesso === 'precatorio_expedido' || c?.faseProcesso === 'rpv_expedida';
+  if (expedido) return { texto: 'Precatório/RPV já expedido', ok: true };
+  if (c?.situacaoExpedicao === 'em_andamento') return { texto: 'Processo em andamento (ainda sem expedição)', ok: false };
+  if (c?.situacaoExpedicao === 'nao_sabe') return { texto: 'Não sabe informar', ok: false };
+  return { texto: NAO_INFORMADO, ok: false };
+}
+
 /**
- * Formata o dossiê executivo completo do lead para o campo [+] INFORMAÇÕES EXTRAS (UF_CRM_1702986695)
- * e timeline do Bitrix24, estruturado com banners, emojis e detalhes da qualificação.
+ * Dossiê do lead para o campo [+] INFORMAÇÕES EXTRAS (UF_CRM_1702986695) e a timeline do Bitrix24.
+ * Estruturado pelos critérios de MQL (lead qualificado pelo marketing): só traz o que o cliente
+ * informou na conversa; o que não foi obtido sai como "Não informado", nunca como valor presumido.
+ * A qualificação comercial (SQL) continua sendo feita pelo comercial.
  */
 export function formatarDossieCardBitrix(p: {
   nome: string;
@@ -586,101 +615,80 @@ export function formatarDossieCardBitrix(p: {
   contatoRealizado?: boolean;
 }): string {
   const c = p.curadoria;
-  const temProcesso = Boolean(
-    c?.temProcesso ||
-    c?.faseProcesso === 'precatorio_expedido' ||
-    c?.faseProcesso === 'rpv_expedida' ||
-    c?.faseProcesso === 'aguardando_expedicao' ||
-    c?.numeroProcesso
-  );
+  const rotulo = (map: Record<string, string>, k?: string | null) => (k ? map[k] || k : null);
+  const relacaoInformada = c?.relacaoTitular && c.relacaoTitular !== 'nao_sabe' ? c.relacaoTitular : null;
+  const existencia = existenciaPrecatorio(c);
+  const esferaOk = c?.tipo === 'federal' || c?.tipo === 'estadual' || c?.tipo === 'municipal';
+  const localidade = [c?.municipio, c?.uf].filter(Boolean).join(' - ');
 
-  const localidade = [c?.municipio, c?.uf].filter(Boolean).join(' - ') || 'Não especificada';
-  const esfera = c?.tipo ? c.tipo.toUpperCase() : 'Não informada';
-  const valor = c?.valorAproximado || 'Não informado';
+  const criterios: [string, boolean][] = [
+    ['Contato', Boolean(p.nome && p.celular)],
+    ['Relação com o precatório', Boolean(relacaoInformada)],
+    ['Existência do precatório', existencia.ok],
+    ['Intenção', Boolean(c?.intencao)],
+    ['Aderência', esferaOk && c?.situacaoExpedicao !== 'em_andamento'],
+  ];
+  const atendidos = criterios.filter(([, ok]) => ok).length;
+  const mql = atendidos === criterios.length;
 
+  const banner = (titulo: string) => ['', '===================================', titulo, '==================================='];
   const linhas: (string | null)[] = [
     '===================================',
-    '⭐ [QUALIFICAÇÃO & CURADORIA DE PRECATÓRIO - IA KAREN]',
+    '[QUALIFICAÇÃO DE MARKETING - MQL - IA KAREN]',
     '===================================',
-    `• Lead / Contato: ${p.nome}`,
-    `• Telefone / WhatsApp: ${p.celular ? formatCelularBr(p.celular) : 'Não informado'}`,
-    p.cpf ? `• CPF do Contato: ${p.cpf}` : null,
+    `• Status: ${mql ? 'MQL (lead qualificado pelo marketing)' : `Em qualificação (${atendidos} de ${criterios.length} critérios de MQL atendidos)`}`,
+    '• Qualificação comercial: pendente (a cargo do comercial)',
+    `• Critérios atendidos: ${criterios.filter(([, ok]) => ok).map(([n]) => n).join(', ') || 'nenhum'}`,
+    `• Critérios pendentes: ${criterios.filter(([, ok]) => !ok).map(([n]) => n).join(', ') || 'nenhum'}`,
     `• Protocolo do Atendimento: ${protocoloFromSession(p.sessionId)}`,
-    `• Classificação do Lead: ${c?.status ? (ROTULO_STATUS as Record<string, string>)[c.status] || c.status : 'Qualificado'}`,
-    `• Rank de Prioridade: ${c?.rank ? `${c.rank} ${temProcesso ? '🔥 (ALTA PRIORIDADE)' : ''}` : 'C'}`,
-    `• Processo Judicial Ativo: ${temProcesso ? '🔥 SIM (Foguinho ativado no card)' : 'NÃO / EM APURAÇÃO'}`,
-    c?.numeroProcesso ? `• Nº do Processo Judicial: ${c.numeroProcesso}` : null,
-    `• Esfera do Precatório: ${esfera}`,
-    `• Localidade (UF / Município): ${localidade}`,
-    `• Valor Estimado Declarado: ${valor}`,
-    `• Fase Processual: ${c?.faseProcesso ? (ROTULO_FASE as Record<string, string>)[c.faseProcesso] || c.faseProcesso : 'Em apuração'}`,
-    `• Relação com o Crédito: ${c?.relacaoTitular ? (ROTULO_TITULAR as Record<string, string>)[c.relacaoTitular] || c.relacaoTitular : 'Titular'}`,
+
+    ...banner('[1. CONTATO]'),
+    `• Nome: ${p.nome || NAO_INFORMADO}`,
+    `• Telefone / WhatsApp: ${p.celular ? formatCelularBr(p.celular) : NAO_INFORMADO}`,
+    p.cpf ? `• CPF: ${p.cpf}` : null,
+    `• Melhor horário: ${c?.melhorHorarioContato || NAO_INFORMADO}`,
+    `• Melhor dia: ${c?.melhorDiaContato || NAO_INFORMADO}`,
+
+    ...banner('[2. RELAÇÃO COM O PRECATÓRIO]'),
+    `• Relação: ${rotulo(ROTULO_TITULAR as Record<string, string>, relacaoInformada) ?? NAO_INFORMADO}`,
   ];
 
-  if (c?.relacaoTitular && c.relacaoTitular !== 'proprio_titular') {
+  if (relacaoInformada && relacaoInformada !== 'proprio_titular') {
     linhas.push(
-      '',
-      '===================================',
-      '👤 [DADOS DO TITULAR ORIGINÁRIO]',
-      '===================================',
-      `• Nome do Titular: ${c.nomeTitular || 'Não informado'}`,
-      `• CPF do Titular: ${c.cpfTitular || 'Não informado'}`,
-      `• Telefone do Titular: ${c.celularTitular ? formatCelularBr(c.celularTitular) : 'Não informado'}`,
-      `• Vínculo com o Titular: ${c.vinculoTitular || (ROTULO_TITULAR as Record<string, string>)[c.relacaoTitular] || c.relacaoTitular}`,
-      `• Intermediário (Contato): ${p.nome} (${(ROTULO_TITULAR as Record<string, string>)[c.relacaoTitular] || c.relacaoTitular})`
-    );
-  }
-
-  const horarioContato = c?.melhorHorarioContato;
-  const diaContato = c?.melhorDiaContato;
-  if (horarioContato || diaContato) {
-    linhas.push(
-      '',
-      '===================================',
-      '⏰ [PREFERÊNCIA DE CONTATO COMERCIAL]',
-      '===================================',
-      `• Melhor Horário: ${horarioContato || 'Qualquer horário'}`,
-      diaContato ? `• Melhor Dia para Contato: ${diaContato}` : null
+      `• Vínculo com o titular: ${c?.vinculoTitular || NAO_INFORMADO}`,
+      `• Nome do titular: ${c?.nomeTitular || NAO_INFORMADO}`,
+      `• CPF do titular: ${c?.cpfTitular || NAO_INFORMADO}`,
+      `• Telefone do titular: ${c?.celularTitular ? formatCelularBr(c.celularTitular) : NAO_INFORMADO}`
     );
   }
 
   linhas.push(
-    '',
-    '===================================',
-    '📋 [DIAGNÓSTICO JURÍDICO & ANÁLISE DE CESSÃO]',
-    '===================================',
-    `• Intenção de Cessão: ${c?.intencao ? (ROTULO_INTENCAO as Record<string, string>)[c.intencao] || c.intencao : 'Avaliando propostas'}`,
-    `• Documentação (Ofício Requisitório): ${c?.temOficio ? 'Possui ofício em mãos ✓' : 'Aguardando envio / Não possui'}`,
-    c?.parecer ? `• Parecer Técnico: ${c.parecer}` : null
+    ...banner('[3. EXISTÊNCIA DO PRECATÓRIO]'),
+    `• Situação: ${existencia.texto}`,
+    `• Nº do processo: ${c?.numeroProcesso || NAO_INFORMADO}`,
+    `• Ofício requisitório em mãos: ${c?.temOficio == null ? NAO_INFORMADO : c.temOficio ? 'Sim' : 'Não'}`,
+
+    ...banner('[4. INTENÇÃO]'),
+    `• Intenção: ${rotulo(ROTULO_INTENCAO as Record<string, string>, c?.intencao) ?? NAO_INFORMADO}`,
+
+    ...banner('[5. ADERÊNCIA]'),
+    `• Esfera: ${c?.tipo ? ROTULO_ESFERA[c.tipo] || c.tipo : 'Não informada (pendente de triagem)'}`,
+    `• Localidade (UF / Município): ${localidade || NAO_INFORMADO}`,
+    `• Valor do precatório (faixa): ${faixaValor(c?.valorAproximado)}`
   );
 
-  linhas.push(
-    '',
-    '===================================',
-    '📱 [STATUS DE ATENDIMENTO & WHATSAPP]',
-    '===================================',
-    `• Primeiro Contato via WhatsApp API: ${p.contatoRealizado !== false ? 'Disparado com Sucesso ✓' : 'Aguardando disparo'}`,
-    `• Canal de Entrada: LP-IA (Secretária Digital Karen)`
-  );
-
-  if (c?.orientacoesComercial) {
+  if (p.contatoRealizado != null) {
     linhas.push(
-      '',
-      '===================================',
-      '💼 [ORIENTAÇÃO COMERCIAL PARA FECHAMENTO]',
-      '===================================',
-      `👉 ${c.orientacoesComercial}`
+      ...banner('[ATENDIMENTO]'),
+      `• Primeiro contato via WhatsApp API: ${p.contatoRealizado ? 'Disparado com sucesso ✓' : 'Não disparado'}`
     );
   }
 
   const attr = p.attr || {};
   linhas.push(
-    '',
-    '===================================',
-    '🎯 [ORIGEM & RASTREAMENTO DE MARKETING - MKT]',
-    '===================================',
-    '• Tag de Origem: [MKT] DE ONDE VEIO O LEAD? = LP-IA',
-    '• Funil de Origem: LP PREMIUM OFFICE',
+    ...banner('[ORIGEM & RASTREAMENTO - MKT]'),
+    '• [MKT] DE ONDE VEIO O LEAD?: LP-IA',
+    '• Funil de origem: LP PREMIUM OFFICE',
     attr.utm_source ? `• UTM Source: ${attr.utm_source}` : null,
     attr.utm_medium ? `• UTM Medium: ${attr.utm_medium}` : null,
     attr.utm_campaign ? `• Campanha: ${attr.utm_campaign}` : null,
@@ -726,7 +734,6 @@ async function criarNegocio(input: LeadInput & { nome: string; celular: string }
     curadoria: input.curadoria,
     attr,
     variante: input.variante,
-    contatoRealizado: true,
   });
 
   const fields: Record<string, unknown> = {
@@ -886,7 +893,6 @@ async function atualizarNegocio(deal: DealRef, input: LeadInput) {
       curadoria: input.curadoria,
       attr: input.attribution,
       variante: input.variante,
-      contatoRealizado: true,
     });
     curadoriaFields[DEAL_UF_INFORMACOES_EXTRAS] = dossie;
     curadoriaFields[DEAL_UF_MKT_ORIGEM_LEAD] = DEAL_ORIGEM_LEAD_LPIA_ID;

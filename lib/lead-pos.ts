@@ -2,7 +2,7 @@
 // (/api/lead para a LP e o formulário, /api/agente para a secretária digital).
 import { after } from 'next/server';
 import { negocioDaSessao, registrarCpf, type Attribution } from '@/lib/bitrix';
-import { enriquecerCard } from '@/lib/enriquecimento';
+import { pesquisarProcessoNoCard } from '@/lib/infosimples';
 import { aiChatLeadEventId, enviarAIChatLead, isMetaCapiConfigured } from '@/lib/meta-capi';
 import { SITE_URL } from '@/lib/site';
 
@@ -42,15 +42,19 @@ export function agendarAIChatLead(p: {
   return { id };
 }
 
-/** Grava o CPF informado e enriquece o card (Lemit + Infosimples), após a resposta. */
-export function agendarCpfEEnriquecimento(p: { sessionId: string; cpf: string; nome?: string; celular?: string }) {
+/**
+ * Pesquisa o processo do titular na Infosimples (só Federal/Estadual com UF) e comenta no card,
+ * após a resposta. Com `gravarCpf`, também grava o CPF no Negócio e no Contato da sessão.
+ */
+export function agendarCpfEEnriquecimento(p: { sessionId: string; cpf: string; dealId?: number | null; gravarCpf?: boolean; esfera?: string | null; uf?: string | null }) {
   after(async () => {
     try {
-      const { dealId } = await registrarCpf({ sessionId: p.sessionId, cpf: p.cpf });
-      const id = dealId ?? (await negocioDaSessao(p.sessionId));
-      if (id) await enriquecerCard({ sessionId: p.sessionId, cpf: p.cpf, dealId: id, nomeDeclarado: p.nome, celularDeclarado: p.celular });
+      let id = p.dealId ?? null;
+      if (p.gravarCpf !== false) id = (await registrarCpf({ sessionId: p.sessionId, cpf: p.cpf })).dealId ?? id;
+      id = id ?? (await negocioDaSessao(p.sessionId));
+      if (id) await pesquisarProcessoNoCard({ sessionId: p.sessionId, dealId: id, cpf: p.cpf, esfera: p.esfera, uf: p.uf });
     } catch (error) {
-      console.error('[lead] falha ao gravar o CPF/enriquecer o card:', (error as Error).message);
+      console.error('[lead] falha ao gravar o CPF/pesquisar o processo:', (error as Error).message);
     }
   });
 }

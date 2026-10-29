@@ -4,7 +4,7 @@ import { describeError, getClientIp, isValidClientSessionId, rateLimit } from '@
 import { isBitrixConfigured, registrarCuradoriaComment, registrarDeclaracoes, registrarLead, sanitizeAttribution } from '@/lib/bitrix';
 import { executarCuradoria, formatarFichaCuradoria, ROTULO_FASE, ROTULO_STATUS, ROTULO_TITULAR } from '@/lib/curadoria';
 import { enviarPrimeiroContatoWhatsApp } from '@/lib/whatsapp-api';
-import { agendarAIChatLead } from '@/lib/lead-pos';
+import { agendarAIChatLead, agendarCpfEEnriquecimento } from '@/lib/lead-pos';
 import { isValidCpf } from '@/lib/oficio-extract';
 
 // Variante B (/antecipar): fim do formulário em etapas. Faz a triagem e o ranqueamento (curadoria),
@@ -146,7 +146,6 @@ export async function POST(request: Request) {
         vinculoTitular: d.vinculoTitular,
         faseProcesso: curadoria.faseProcesso,
         situacaoExpedicao: situacao,
-        intencao: curadoria.intencao,
         temProcesso: curadoria.temProcesso,
         numeroProcesso: processo,
         municipio: d.municipio || null,
@@ -161,6 +160,11 @@ export async function POST(request: Request) {
       },
     });
     if (!registrado) return bad('Não foi possível registrar seus dados agora. Tente novamente.', 502);
+
+    // Pesquisa do processo na Infosimples pelo CPF do titular (Federal/Estadual com UF); o CPF do
+    // contato já foi gravado no registro do lead, por isso aqui só consulta.
+    const cpfTitular = titular?.cpf ?? d.cpf;
+    if (cpfTitular) agendarCpfEEnriquecimento({ sessionId: d.clientSessionId, cpf: cpfTitular, dealId, gravarCpf: false, esfera: d.tipo, uf: d.uf });
 
     const aiChatLead =
       criado && dealId

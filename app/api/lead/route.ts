@@ -143,7 +143,7 @@ export async function POST(request: Request) {
       attribution: attributionClean,
       variante,
     });
-    if (registrado && cpf) agendarCpfEEnriquecimento({ sessionId: clientSessionId, cpf, nome, celular });
+    if (registrado && cpf) agendarCpfEEnriquecimento({ sessionId: clientSessionId, cpf, dealId });
     if (registrado && declaracoes.length) {
       after(() =>
         registrarDeclaracoes({ sessionId: clientSessionId, titulo: 'Respostas do formulário em etapas:', itens: declaracoes }).catch((error) =>
