@@ -186,28 +186,38 @@ async function consultarTribunal(token: string, cpf: string, s: Servico): Promis
   }
 }
 
+// Comentário da timeline do Bitrix renderiza BBCode: negrito/sublinhado nos pontos de decisão.
+// Colchetes vindos da API são trocados por parênteses para não virarem tags.
+const bb = (s: string) => s.replace(/\[/g, '(').replace(/\]/g, ')');
+const negrito = (s: string) => `[b]${bb(s)}[/b]`;
+
 function textoComentario(escopo: string, resultados: ResultadoTribunal[]): string {
   const achou = resultados.some((r) => r.status === 'ok');
-  const linhas = [`[LP] Pesquisa Infosimples por CPF do titular (${escopo}): ${achou ? 'PROCESSO LOCALIZADO' : 'nada localizado'}`];
+  const linhas = [
+    `[b]PESQUISA INFOSIMPLES POR CPF DO TITULAR[/b] (${bb(escopo)})`,
+    achou ? '[b][u]PROCESSO LOCALIZADO[/u][/b]' : '[b]Nada localizado[/b]',
+  ];
   for (const r of resultados) {
     if (r.status === 'ok') {
-      linhas.push(`● ${r.rotulo}: ${r.total} processo(s) localizado(s)`);
+      linhas.push('', `● ${negrito(r.rotulo)}: [b]${r.total} processo(s) localizado(s)[/b]`);
       for (const p of r.processos.slice(0, MAX_PROCESSOS_POR_TRIBUNAL)) {
-        const detalhe = [p.relevante ? 'possível precatório/RPV' : null, p.classe, p.assunto, p.orgao, p.valor && `Valor: ${p.valor}`, p.ultimaMov && `Última mov.: ${p.ultimaMov}`]
-          .filter(Boolean)
-          .join(' | ');
-        linhas.push(`   ↳ ${p.numero}${detalhe ? ` | ${detalhe}` : ''}`);
+        linhas.push(`↳ Processo ${negrito(p.numero)}${p.relevante ? ' - [b][u]possível precatório/RPV[/u][/b]' : ''}`);
+        if (p.classe) linhas.push(`   Classe: ${negrito(p.classe)}`);
+        if (p.assunto) linhas.push(`   Assunto: ${bb(p.assunto)}`);
+        if (p.orgao) linhas.push(`   Órgão: ${bb(p.orgao)}`);
+        if (p.valor) linhas.push(`   Valor: ${negrito(p.valor)}`);
+        if (p.ultimaMov) linhas.push(`   Última movimentação: ${bb(p.ultimaMov)}`);
       }
-      if (r.total > MAX_PROCESSOS_POR_TRIBUNAL) linhas.push(`   ↳ e mais ${r.total - MAX_PROCESSOS_POR_TRIBUNAL} processo(s)`);
+      if (r.total > MAX_PROCESSOS_POR_TRIBUNAL) linhas.push(`↳ e mais ${r.total - MAX_PROCESSOS_POR_TRIBUNAL} processo(s)`);
     } else if (r.status === 'nada') {
-      linhas.push(`● ${r.rotulo}: nada localizado na base aberta`);
+      linhas.push('', `● ${negrito(r.rotulo)}: nada localizado na base aberta`);
     } else if (r.status === 'restrito') {
-      linhas.push(`▲ ${r.rotulo}: acesso restrito ou segredo de justiça${r.detalhe ? ` (${r.detalhe})` : ''}`);
+      linhas.push('', `▲ ${negrito(r.rotulo)}: [b]acesso restrito ou segredo de justiça[/b]${r.detalhe ? ` (${bb(r.detalhe)})` : ''}`);
     } else {
-      linhas.push(`▲ ${r.rotulo}: consulta não concluída${r.detalhe ? ` (${r.detalhe})` : ''}`);
+      linhas.push('', `▲ ${negrito(r.rotulo)}: [b]consulta não concluída[/b]${r.detalhe ? ` (${bb(r.detalhe)})` : ''}`);
     }
   }
-  if (!achou) linhas.push('→ Pode haver segredo de justiça, expedição recente ou outro tribunal: peça ao cliente o número do processo ou o ofício.');
+  if (!achou) linhas.push('', '→ [b]Pode haver segredo de justiça, expedição recente ou outro tribunal:[/b] peça ao cliente o número do processo ou o ofício.');
   return linhas.join('\n');
 }
 
@@ -240,7 +250,7 @@ export async function pesquisarProcessoNoCard(input: {
 
   try {
     if (!alvo.servicos.length) {
-      await comentarNoNegocio(input.dealId, `[LP] Pesquisa Infosimples não realizada (${alvo.escopo}). ${alvo.motivo ?? ''} Peça o número do processo ou o ofício ao cliente.`);
+      await comentarNoNegocio(input.dealId, `[b]Pesquisa Infosimples não realizada[/b] (${bb(alvo.escopo)}). ${alvo.motivo ?? ''} [b]Peça o número do processo ou o ofício ao cliente.[/b]`);
       return;
     }
     const resultados = await Promise.all(alvo.servicos.map((s) => consultarTribunal(token, input.cpf, s)));
