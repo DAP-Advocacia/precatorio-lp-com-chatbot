@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { XIcon } from 'lucide-react';
+import { ClockIcon, FlameIcon, LockIcon, PaperclipIcon, StarIcon, UserIcon, XIcon } from 'lucide-react';
 import { OPEN_CHAT_EVENT } from '@/lib/chat-events';
 import { enviarFormulario, enviarLead, enviarOficio, getClientSessionId, type FormularioPayload, type OficioExtraido } from '@/lib/lead-client';
 import { formatBRL } from '@/lib/format';
@@ -144,7 +144,7 @@ function Campo({
 }: {
   id: string;
   rotulo: string;
-  ajuda?: string;
+  ajuda?: ReactNode;
   erro?: string;
   acao?: ReactNode;
   children: ReactNode;
@@ -480,7 +480,8 @@ export default function FormularioEtapas() {
           <div className="mb-6 flex items-start justify-between gap-3 border-b border-white/10 pb-5">
             <div>
               <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-porcelain/15 px-3 py-0.5 text-[12px] font-bold text-porcelain">
-                ⭐ Premium Office · Curadoria de Precatórios
+                <StarIcon size={13} className="fill-current" aria-hidden="true" />
+                Premium Office · Curadoria de Precatórios
               </div>
               <h2 className="m-0 text-[clamp(20px,3vw,26px)] font-extrabold leading-tight">
                 Triagem e Qualificação de Precatório
@@ -548,8 +549,9 @@ export default function FormularioEtapas() {
                   />
                 </Campo>
 
-                <p className="m-0 mt-3 text-[12px] text-[#9AA6BC]">
-                  🔒 Seus dados estão protegidos com criptografia de ponta a ponta conforme as diretrizes da LGPD.
+                <p className="m-0 mt-3 inline-flex items-start gap-1.5 text-[12px] text-[#9AA6BC]">
+                  <LockIcon size={13} className="mt-[1px] shrink-0" aria-hidden="true" />
+                  Seus dados estão protegidos com criptografia de ponta a ponta conforme as diretrizes da LGPD.
                 </p>
               </div>
             )}
@@ -577,8 +579,9 @@ export default function FormularioEtapas() {
 
                 {dados.titularidade === 'É de outra pessoa.' && (
                   <div className="mt-5 space-y-4 rounded-2xl border border-white/15 bg-white/[0.04] p-5 animate-fadeUp">
-                    <p className="m-0 text-[14px] font-bold text-porcelain">
-                      👤 Dados do titular originário do crédito:
+                    <p className="m-0 inline-flex items-center gap-2 text-[14px] font-bold text-porcelain">
+                      <UserIcon size={16} aria-hidden="true" />
+                      Dados do titular originário do crédito:
                     </p>
 
                     <Campo id="fe-titular-nome" rotulo="5. Qual é o nome completo do titular do precatório?" erro={erros.nomeTitular}>
@@ -736,7 +739,12 @@ export default function FormularioEtapas() {
                 <Campo
                   id="fe-expedicao-situacao"
                   rotulo="Pergunta 10: O precatório já foi expedido ou o processo ainda está em andamento?"
-                  ajuda="Precatórios já expedidos recebem prioridade máxima 🔥 em nossa mesa de negociação."
+                  ajuda={
+                    <>
+                      Precatórios já expedidos recebem prioridade máxima{' '}
+                      <FlameIcon size={14} className="inline align-[-2px]" aria-hidden="true" /> em nossa mesa de negociação.
+                    </>
+                  }
                   erro={erros.situacaoExpedicao}
                 >
                   <Opcoes
@@ -847,8 +855,9 @@ export default function FormularioEtapas() {
                   <p className="m-0 text-[14px] text-porcelain font-semibold">
                     Em breve, nossa equipe entrará em contato conforme a disponibilidade informada:
                   </p>
-                  <p className="m-0 mt-1 font-bold text-white text-[15px]">
-                    ⏰ Horário: {dados.melhorHorarioContato || 'Horário Comercial'} {dados.melhorDiaContato ? `(${dados.melhorDiaContato})` : ''}
+                  <p className="m-0 mt-1 inline-flex items-center justify-center gap-1.5 font-bold text-white text-[15px]">
+                    <ClockIcon size={16} aria-hidden="true" />
+                    Horário: {dados.melhorHorarioContato || 'Horário Comercial'} {dados.melhorDiaContato ? `(${dados.melhorDiaContato})` : ''}
                   </p>
                   <p className="m-0 mt-2 text-[12px] text-[#9AA6BC]">
                     Protocolo de Atendimento: <span className="font-mono text-porcelain font-bold">{protocolo}</span>
@@ -878,7 +887,14 @@ export default function FormularioEtapas() {
                       onClick={() => arquivoRef.current?.click()}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 py-2.5 text-[14px] font-bold text-white hover:bg-white/20 disabled:opacity-60 cursor-pointer"
                     >
-                      {enviando ? 'Lendo ofício...' : '📎 Anexar ofício (PDF ou Foto)'}
+                      {enviando ? (
+                        'Lendo ofício...'
+                      ) : (
+                        <>
+                          <PaperclipIcon size={16} aria-hidden="true" />
+                          Anexar ofício (PDF ou Foto)
+                        </>
+                      )}
                     </button>
                     {oficioRecebido && (
                       <p className="m-0 mt-2 text-[12px] font-semibold text-emerald-300">
